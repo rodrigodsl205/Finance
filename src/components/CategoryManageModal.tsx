@@ -1,0 +1,221 @@
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, Trash2, Edit3, X, ArrowDownCircle, ArrowUpCircle, Check } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { logger } from '@/lib/logger';
+import type { Category, CategoryKind } from '@/types';
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  spaceId: string | null;
+  onSaved: () => void;
+  filterKind?: CategoryKind;
+  selectedId?: string;
+  onSelect?: (category: Category) => void;
+}
+
+export default function CategoryManageModal({ open, onClose, spaceId, onSaved, filterKind, selectedId, onSelect }: Props) {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Category | null>(null);
+  const [name, setName] = useState('');
+  const [kind, setKind] = useState<CategoryKind>('expense');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const selectMode = !!onSelect;
+
+  const fetchCategories = useCallback(async () => {
+    if (!spaceId) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('space_id', spaceId)
+      .order('name');
+    if (!error && data) setCategories(data as Category[]);
+    if (error) logger.error('Erro ao carregar categorias', error.message);
+    setLoading(false);
+  }, [spaceId]);
+
+  useEffect(() => {
+    if (open) fetchCategories();
+  }, [open, fetchCategories]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || !spaceId) return;
+    setSaving(true);
+    setError(null);
+
+    if (editing) {
+      const { error } = await supabase.from('categories').update({ name: name.trim() }).eq('id', editing.id);
+      if (error) { logger.error('Erro ao atualizar categoria', error.message); setError(error.message); }
+    } else {
+      const { error } = await supabase.from('categories').insert({ space_id: spaceId, name: name.trim(), kind });
+      if (error) { logger.error('Erro ao criar categoria', error.message); setError(error.message); }
+    }
+
+    if (!error) {
+      setShowForm(false);
+      setEditing(null);
+      setName('');
+      fetchCategories();
+      onSaved();
+    }
+    setSaving(false);
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('Excluir esta categoria?')) return;
+    const { error } = await supabase.from('categories').delete().eq('id', id);
+    if (error) { setError(error.message); return; }
+    fetchCategories();
+    onSaved();
+  }
+
+  function openEdit(cat: Category) {
+    setEditing(cat);
+    setName(cat.name);
+    setKind(cat.kind);
+    setShowForm(true);
+  }
+
+  function openNew(k: CategoryKind) {
+    setEditing(null);
+    setName('');
+    setKind(k);
+    setShowForm(true);
+  }
+
+  function handleSelect(cat: Category) {
+    if (onSelect) {
+      onSelect(cat);
+      onClose();
+    }
+  }
+
+  if (!open) return null;
+
+  const expenseCats = categories.filter(c => c.kind === 'expense');
+  const incomeCats = categories.filter(c => c.kind === 'income');
+  const showExpense = !filterKind || filterKind === 'expense';
+  const showIncome = !filterKind || filterKind === 'income';
+
+  function renderCatList(cats: Category[], label: string, icon: React.ReactNode, newKind: CategoryKind) {
+    if (cats.length === 0 && !selectMode) return null;
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-semibold text-neutral-700 flex items-center gap-2">
+            {icon} {label}
+          </h3>
+          {!selectMode && (
+            <button onClick={() => openNew(newKind)} className="text-primary-600 hover:text-primary-800 text-xs font-medium flex items-center gap-1">
+              <Plus className="w-3.5 h-3.5" /> Adicionar
+            </button>
+          )}
+        </div>
+        <div className="space-y-1">
+          {cats.map(cat => (
+            <div
+              key={cat.id}
+              className={`flex items-center justify-between py-2 px-3 rounded-xl group transition-colors ${
+                selectMode ? 'hover:bg-primary-50 cursor-pointer' : 'hover:bg-neutral-50'
+              } ${selectedId === cat.id ? 'bg-primary-50 ring-1 ring-primary-200' : ''}`}
+              onClick={() => selectMode && handleSelect(cat)}
+            >
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                {selectMode && selectedId === cat.id && <Check className="w-4 h-4 text-primary-600 shrink-0" />}
+                <span className="text-sm text-neutral-700 truncate">{cat.name}</span>
+              </div>
+              {!selectMode && (
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={(e) => { e.stopPropagation(); openEdit(cat); }} className="p-1 rounded text-neutral-400 hover:text-primary-600">
+                    <Edit3 className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(cat.id); }} className="p-1 rounded text-neutral-400 hover:text-danger-600">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+          {cats.length === 0 && <p className="text-xs text-neutral-400 px-3 py-2">Nenhuma categoria de {label.toLowerCase()}.</p>}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/30 animate-fade-in" onClick={onClose}>
+      <div className="card p-6 w-full max-w-lg animate-scale-in max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4 sticky top-0 bg-white pb-2 z-10">
+          <h2 className="text-lg font-semibold text-neutral-900">
+            {selectMode ? 'Selecionar categoria' : 'Gerenciar categorias'}
+          </h2>
+          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 transition-colors"><X className="w-5 h-5" /></button>
+        </div>
+
+        {error && <div className="mb-4 p-3 rounded-xl bg-danger-50 border border-danger-200 text-danger-700 text-sm">{error}</div>}
+
+        {loading ? (
+          <div className="py-8 text-center text-neutral-400">Carregando...</div>
+        ) : showForm ? (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="label">Nome</label>
+              <input className="input" placeholder="Ex: Moradia" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
+            </div>
+            {!editing && (
+              <div>
+                <label className="label">Tipo</label>
+                <select className="input" value={kind} onChange={(e) => setKind(e.target.value as CategoryKind)}>
+                  <option value="expense">Despesa</option>
+                  <option value="income">Receita</option>
+                </select>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button type="submit" disabled={saving} className="btn-primary flex-1">
+                {saving ? 'Salvando...' : editing ? 'Salvar' : 'Criar'}
+              </button>
+              <button type="button" onClick={() => { setShowForm(false); setEditing(null); setName(''); }} className="btn-ghost">
+                Cancelar
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="space-y-4">
+            {categories.length === 0 && (
+              <p className="text-sm text-neutral-500 text-center py-4">
+                Nenhuma categoria cadastrada. Crie uma para usar nos lançamentos.
+              </p>
+            )}
+            {showExpense && renderCatList(
+              expenseCats, 'Despesas',
+              <ArrowDownCircle className="w-4 h-4 text-danger-500" />,
+              'expense'
+            )}
+            {showIncome && renderCatList(
+              incomeCats, 'Receitas',
+              <ArrowUpCircle className="w-4 h-4 text-success-500" />,
+              'income'
+            )}
+            {selectMode && categories.length > 0 && (
+              <button onClick={() => openNew(filterKind ?? 'expense')} className="btn-secondary w-full text-sm">
+                <Plus className="w-4 h-4" /> Nova categoria
+              </button>
+            )}
+            {!selectMode && (
+              <button onClick={() => openNew('expense')} className="btn-secondary w-full text-sm">
+                <Plus className="w-4 h-4" /> Nova categoria
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
