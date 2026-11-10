@@ -13,6 +13,7 @@ import {
   PiggyBank,
   Receipt,
   BarChart3,
+  AlertCircle,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSpaces } from '@/hooks/useSpaces';
@@ -32,9 +33,71 @@ const navItems = [
   { to: '/app/configuracoes', icon: Settings, label: 'Configurações' },
 ];
 
+function SpaceSelectorSkeleton() {
+  return (
+    <div className="space-y-1.5">
+      <div className="h-3 w-20 rounded bg-neutral-200 animate-pulse" />
+      <div className="h-9 rounded-xl bg-neutral-100 animate-pulse" />
+    </div>
+  );
+}
+
+function SpaceSelector({
+  loading,
+  error,
+  spaces,
+  activeSpaceId,
+  changeActiveSpace,
+  compact = false,
+}: {
+  loading: boolean;
+  error: string | null;
+  spaces: ReturnType<typeof useSpaces>['spaces'];
+  activeSpaceId: string | null;
+  changeActiveSpace: (id: string) => void;
+  compact?: boolean;
+}) {
+  if (loading) return <SpaceSelectorSkeleton />;
+
+  if (error) {
+    return (
+      <div className={`flex items-start gap-2 rounded-xl bg-danger-50 border border-danger-200 p-2.5 ${compact ? '' : ''}`}>
+        <AlertCircle className="w-4 h-4 text-danger-600 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-xs font-medium text-danger-700">Erro ao carregar</p>
+          <p className="text-[11px] text-danger-600 leading-tight mt-0.5">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (spaces.length === 0) {
+    return (
+      <div className={`flex items-center gap-2 rounded-xl bg-warning-50 border border-warning-200 p-2.5`}>
+        <AlertCircle className="w-4 h-4 text-warning-600 shrink-0" />
+        <p className="text-xs text-warning-700">Nenhum espaço disponível</p>
+      </div>
+    );
+  }
+
+  return (
+    <select
+      className={compact ? 'text-sm rounded-lg border border-neutral-300 px-2 py-1.5 bg-white max-w-[160px]' : 'input py-2 text-sm'}
+      value={activeSpaceId ?? ''}
+      onChange={(e) => changeActiveSpace(e.target.value)}
+    >
+      {spaces.map((s) => (
+        <option key={s.id} value={s.id}>
+          {s.name} {s.kind === 'shared' ? '(Compartilhado)' : ''}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { profile, signOut } = useAuth();
-  const { spaces, activeSpace, activeSpaceId, changeActiveSpace } = useSpaces();
+  const { spaces, activeSpaceId, changeActiveSpace, loading, error } = useSpaces();
   const navigate = useNavigate();
 
   async function handleSignOut() {
@@ -56,17 +119,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Space selector */}
         <div className="px-4 py-3 border-b border-neutral-200">
           <label className="text-xs text-neutral-500 font-medium mb-1.5 block">Espaço ativo</label>
-          <select
-            className="input py-2 text-sm"
-            value={activeSpaceId ?? ''}
-            onChange={(e) => changeActiveSpace(e.target.value)}
-          >
-            {spaces.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} {s.kind === 'shared' ? '(Compartilhado)' : ''}
-              </option>
-            ))}
-          </select>
+          <SpaceSelector
+            loading={loading}
+            error={error}
+            spaces={spaces}
+            activeSpaceId={activeSpaceId}
+            changeActiveSpace={changeActiveSpace}
+          />
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
@@ -113,17 +172,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
           <span className="font-bold text-neutral-900">DualCash</span>
         </div>
-        <select
-          className="text-sm rounded-lg border border-neutral-300 px-2 py-1.5 bg-white max-w-[160px]"
-          value={activeSpaceId ?? ''}
-          onChange={(e) => changeActiveSpace(e.target.value)}
-        >
-          {spaces.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
+        <SpaceSelector
+          loading={loading}
+          error={error}
+          spaces={spaces}
+          activeSpaceId={activeSpaceId}
+          changeActiveSpace={changeActiveSpace}
+          compact
+        />
       </header>
 
       {/* Main content */}
