@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, Edit3, X, ArrowDownCircle, ArrowUpCircle, Check } from 'lucide-react';
+import { Plus, Trash2, Edit3, X, ArrowDownCircle, ArrowUpCircle, Check, ChevronRight, ChevronDown } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 import type { Category, CategoryKind } from '@/types';
@@ -14,6 +14,36 @@ interface Props {
   onSelect?: (category: Category) => void;
 }
 
+interface CategoryNode extends Category {
+  children: CategoryNode[];
+}
+
+function buildTree(cats: Category[]): CategoryNode[] {
+  const byId = new Map<string, CategoryNode>();
+  for (const c of cats) {
+    byId.set(c.id, { ...c, children: [] });
+  }
+  const roots: CategoryNode[] = [];
+  for (const node of byId.values()) {
+    if (node.parent_id && byId.has(node.parent_id)) {
+      byId.get(node.parent_id)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+  return roots;
+}
+
+function categoryPath(cats: Category[], id: string): string {
+  const cat = cats.find(c => c.id === id);
+  if (!cat) return '';
+  if (cat.parent_id) {
+    const parentPath = categoryPath(cats, cat.parent_id);
+    return parentPath ? `${parentPath} > ${cat.name}` : cat.name;
+  }
+  return cat.name;
+}
+
 export default function CategoryManageModal({ open, onClose, spaceId, onSaved, filterKind, selectedId, onSelect }: Props) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
@@ -21,8 +51,10 @@ export default function CategoryManageModal({ open, onClose, spaceId, onSaved, f
   const [editing, setEditing] = useState<Category | null>(null);
   const [name, setName] = useState('');
   const [kind, setKind] = useState<CategoryKind>('expense');
+  const [parentId, setParentId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const selectMode = !!onSelect;
 
@@ -53,7 +85,7 @@ export default function CategoryManageModal({ open, onClose, spaceId, onSaved, f
       const { error } = await supabase.from('categories').update({ name: name.trim() }).eq('id', editing.id);
       if (error) { logger.error('Erro ao atualizar categoria', error.message); setError(error.message); }
     } else {
-      const { error } = await supabase.from('categories').insert({ space_id: spaceId, name: name.trim(), kind });
+      const { error } = await supabase.from('categories').insert({ space_id: spaceId, name: name.trim(), kind, parent_id: parentId });
       if (error) { logger.error('Erro ao criar categoria', error.message); setError(error.message); }
     }
 
@@ -61,6 +93,7 @@ export default function CategoryManageModal({ open, onClose, spaceId, onSaved, f
       setShowForm(false);
       setEditing(null);
       setName('');
+      setParentId(null);
       fetchCategories();
       onSaved();
     }
@@ -68,7 +101,7 @@ export default function CategoryManageModal({ open, onClose, spaceId, onSaved, f
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Excluir esta categoria?')) return;
+    if (!confirm('Excluir esta categoria? Subcategorias também serão removidas.')) return;
     const { error } = await supabase.from('categories').delete().eq('id', id);
     if (error) { setError(error.message); return; }
     fetchCategories();
@@ -79,13 +112,15 @@ export default function CategoryManageModal({ open, onClose, spaceId, onSaved, f
     setEditing(cat);
     setName(cat.name);
     setKind(cat.kind);
+    setParentId(cat.parent_id);
     setShowForm(true);
   }
 
-  function openNew(k: CategoryKind) {
+  function openNew(k: CategoryKind, parent: Category | null = null) {
     setEditing(null);
     setName('');
     setKind(k);
+    setParentId(parent?.id ?? null);
     setShowForm(true);
   }
 
@@ -96,15 +131,74 @@ export default function CategoryManageModal({ open, onClose, spaceId, onSaved, f
     }
   }
 
+  function toggleExpand(id: string) {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   if (!open) return null;
 
-  const expenseCats = categories.filter(c => c.kind === 'expense');
-  const incomeCats = categories.filter(c => c.kind === 'income');
+  const tree = buildTree(categories);
+  const expenseRoots = tree.filter(c => c.kind === 'expense');
+  const incomeRoots = tree.filter(c => c.kind === 'income');
   const showExpense = !filterKind || filterKind === 'expense';
   const showIncome = !filterKind || filterKind === 'income';
 
-  function renderCatList(cats: Category[], label: string, icon: React.ReactNode, newKind: CategoryKind) {
-    if (cats.length === 0 && !selectMode) return null;
+  function renderNode(node: CategoryNode, level: number): React.ReactNode {
+    const hasChildren = node.children.length > 0;
+    const isExpanded = expanded.has(node.id);
+    const indent = level * 16;
+
+    return (
+      <div key={node.id}>
+        <div
+          className={`flex items-center justify-between py-2 px-3 rounded-xl group transition-colors ${
+            selectMode ? 'hover:bg-primary-50 cursor-pointer' : 'hover:bg-neutral-50'
+          } ${selectedId === node.id ? 'bg-primary-50 ring-1 ring-primary-200' : ''}`}
+          style={{ paddingLeft: `${12 + indent}px` }}
+          onClick={() => selectMode && handleSelect(node)}
+        >
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {selectMode && selectedId === node.id && <Check className="w-4 h-4 text-primary-600 shrink-0" />}
+            {hasChildren ? (
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleExpand(node.id); }}
+                className="p-0.5 rounded text-neutral-400 hover:text-neutral-700 shrink-0"
+              >
+                {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+              </button>
+            ) : (
+              <span className="w-[18px] shrink-0" />
+            )}
+            <span className="text-sm text-neutral-700 truncate">{node.name}</span>
+          </div>
+          {!selectMode && (
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {level < 2 && (
+                <button onClick={(e) => { e.stopPropagation(); openNew(node.kind, node); }} className="p-1 rounded text-neutral-400 hover:text-primary-600" title="Adicionar subcategoria">
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <button onClick={(e) => { e.stopPropagation(); openEdit(node); }} className="p-1 rounded text-neutral-400 hover:text-primary-600">
+                <Edit3 className="w-3.5 h-3.5" />
+              </button>
+              <button onClick={(e) => { e.stopPropagation(); handleDelete(node.id); }} className="p-1 rounded text-neutral-400 hover:text-danger-600">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+        {hasChildren && isExpanded && node.children.map(child => renderNode(child, level + 1))}
+      </div>
+    );
+  }
+
+  function renderCatList(roots: CategoryNode[], label: string, icon: React.ReactNode, newKind: CategoryKind) {
+    if (roots.length === 0 && !selectMode) return null;
     return (
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -117,32 +211,9 @@ export default function CategoryManageModal({ open, onClose, spaceId, onSaved, f
             </button>
           )}
         </div>
-        <div className="space-y-1">
-          {cats.map(cat => (
-            <div
-              key={cat.id}
-              className={`flex items-center justify-between py-2 px-3 rounded-xl group transition-colors ${
-                selectMode ? 'hover:bg-primary-50 cursor-pointer' : 'hover:bg-neutral-50'
-              } ${selectedId === cat.id ? 'bg-primary-50 ring-1 ring-primary-200' : ''}`}
-              onClick={() => selectMode && handleSelect(cat)}
-            >
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                {selectMode && selectedId === cat.id && <Check className="w-4 h-4 text-primary-600 shrink-0" />}
-                <span className="text-sm text-neutral-700 truncate">{cat.name}</span>
-              </div>
-              {!selectMode && (
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={(e) => { e.stopPropagation(); openEdit(cat); }} className="p-1 rounded text-neutral-400 hover:text-primary-600">
-                    <Edit3 className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(cat.id); }} className="p-1 rounded text-neutral-400 hover:text-danger-600">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-          {cats.length === 0 && <p className="text-xs text-neutral-400 px-3 py-2">Nenhuma categoria de {label.toLowerCase()}.</p>}
+        <div className="space-y-0.5">
+          {roots.map(cat => renderNode(cat, 0))}
+          {roots.length === 0 && <p className="text-xs text-neutral-400 px-3 py-2">Nenhuma categoria de {label.toLowerCase()}.</p>}
         </div>
       </div>
     );
@@ -164,11 +235,19 @@ export default function CategoryManageModal({ open, onClose, spaceId, onSaved, f
           <div className="py-8 text-center text-neutral-400">Carregando...</div>
         ) : showForm ? (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {parentId && (
+              <div>
+                <label className="label">Categoria pai</label>
+                <div className="input bg-neutral-50 text-neutral-500">
+                  {categoryPath(categories, parentId)}
+                </div>
+              </div>
+            )}
             <div>
               <label className="label">Nome</label>
               <input className="input" placeholder="Ex: Moradia" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
             </div>
-            {!editing && (
+            {!editing && !parentId && (
               <div>
                 <label className="label">Tipo</label>
                 <select className="input" value={kind} onChange={(e) => setKind(e.target.value as CategoryKind)}>
@@ -181,7 +260,7 @@ export default function CategoryManageModal({ open, onClose, spaceId, onSaved, f
               <button type="submit" disabled={saving} className="btn-primary flex-1">
                 {saving ? 'Salvando...' : editing ? 'Salvar' : 'Criar'}
               </button>
-              <button type="button" onClick={() => { setShowForm(false); setEditing(null); setName(''); }} className="btn-ghost">
+              <button type="button" onClick={() => { setShowForm(false); setEditing(null); setName(''); setParentId(null); }} className="btn-ghost">
                 Cancelar
               </button>
             </div>
@@ -194,12 +273,12 @@ export default function CategoryManageModal({ open, onClose, spaceId, onSaved, f
               </p>
             )}
             {showExpense && renderCatList(
-              expenseCats, 'Despesas',
+              expenseRoots, 'Despesas',
               <ArrowDownCircle className="w-4 h-4 text-danger-500" />,
               'expense'
             )}
             {showIncome && renderCatList(
-              incomeCats, 'Receitas',
+              incomeRoots, 'Receitas',
               <ArrowUpCircle className="w-4 h-4 text-success-500" />,
               'income'
             )}

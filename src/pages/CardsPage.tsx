@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, CreditCard, Trash2, Edit3, X, Check } from 'lucide-react';
+import { Plus, CreditCard, Trash2, Edit3, X } from 'lucide-react';
 import { useCards } from '@/hooks/useFinance';
 import { useAuth } from '@/hooks/useAuth';
 import { useSpaces } from '@/hooks/useSpaces';
@@ -8,6 +8,7 @@ import { centsToBRL } from '@/lib/money';
 import { formatCurrencyInput, parseCurrencyInput } from '@/lib/format';
 import { logger } from '@/lib/logger';
 import { cardDisplayLabel } from '@/lib/dates';
+import BrandManageModal from '@/components/BrandManageModal';
 import type { Card } from '@/types';
 
 const DEFAULT_BRANDS = ['Visa', 'Mastercard', 'Elo', 'American Express', 'Hipercard'];
@@ -42,12 +43,11 @@ export default function CardsPage() {
   const { activeSpaceId } = useSpaces();
 
   const [showModal, setShowModal] = useState(false);
+  const [showBrandModal, setShowBrandModal] = useState(false);
   const [editing, setEditing] = useState<Card | null>(null);
   const [institution, setInstitution] = useState('');
   const [holderName, setHolderName] = useState('');
   const [brand, setBrand] = useState('');
-  const [customBrandMode, setCustomBrandMode] = useState(false);
-  const [customBrand, setCustomBrand] = useState('');
   const [lastDigits, setLastDigits] = useState('');
   const [limit, setLimit] = useState('');
   const [closingDay, setClosingDay] = useState('1');
@@ -60,27 +60,21 @@ export default function CardsPage() {
     .filter((b): b is string => !!b && !DEFAULT_BRANDS.includes(b));
   const allBrands = [...DEFAULT_BRANDS, ...new Set(customBrands)];
 
-  function resolveBrand(): string {
-    if (customBrandMode) return customBrand.trim();
-    return brand;
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!institution.trim() || !activeSpaceId || !user) return;
     setSaving(true);
     setError(null);
     const limitCents = parseCurrencyInput(limit || '0');
-    const finalBrand = resolveBrand();
     const cardName = `${institution.trim()}${lastDigits.trim() ? ` ${lastDigits.trim()}` : ''}`;
-    logger.info('Salvando cartão', { editing: !!editing, institution: institution.trim(), finalBrand, limitCents });
+    logger.info('Salvando cartão', { editing: !!editing, institution: institution.trim(), brand, limitCents });
 
     if (editing) {
       const { error } = await supabase
         .from('cards')
         .update({
           name: cardName, holder_name: holderName.trim() || null,
-          brand: finalBrand || null, last_digits: lastDigits.trim() || null,
+          brand: brand || null, last_digits: lastDigits.trim() || null,
           limit_cents: limitCents, closing_day: parseInt(closingDay), due_day: parseInt(dueDay),
         })
         .eq('id', editing.id);
@@ -90,7 +84,7 @@ export default function CardsPage() {
         .from('cards')
         .insert({
           space_id: activeSpaceId, name: cardName,
-          holder_name: holderName.trim() || null, brand: finalBrand || null,
+          holder_name: holderName.trim() || null, brand: brand || null,
           last_digits: lastDigits.trim() || null, limit_cents: limitCents,
           closing_day: parseInt(closingDay), due_day: parseInt(dueDay), owner_id: user.id,
         });
@@ -108,9 +102,8 @@ export default function CardsPage() {
   }
 
   function resetForm() {
-    setInstitution(''); setHolderName(''); setBrand(''); setCustomBrand('');
-    setCustomBrandMode(false); setLastDigits(''); setLimit('');
-    setClosingDay('1'); setDueDay('10');
+    setInstitution(''); setHolderName(''); setBrand(''); setLastDigits('');
+    setLimit(''); setClosingDay('1'); setDueDay('10');
   }
 
   async function handleDelete(id: string) {
@@ -123,16 +116,7 @@ export default function CardsPage() {
     setEditing(card);
     setInstitution(card.name.replace(/\s*\d{4}$/, ''));
     setHolderName(card.holder_name ?? '');
-    const cardBrand = card.brand ?? '';
-    if (cardBrand && !DEFAULT_BRANDS.includes(cardBrand)) {
-      setCustomBrandMode(true);
-      setCustomBrand(cardBrand);
-      setBrand('');
-    } else {
-      setCustomBrandMode(false);
-      setBrand(cardBrand);
-      setCustomBrand('');
-    }
+    setBrand(card.brand ?? '');
     setLastDigits(card.last_digits ?? '');
     setLimit(formatCurrencyInput(String(card.limit_cents)));
     setClosingDay(String(card.closing_day));
@@ -234,28 +218,18 @@ export default function CardsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">Bandeira</label>
-                  {!customBrandMode ? (
-                    <div className="flex gap-2">
-                      <select className="input flex-1" value={brand} onChange={(e) => setBrand(e.target.value)}>
-                        <option value="">Selecione</option>
-                        {allBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
-                      <button type="button" onClick={() => { setCustomBrandMode(true); setBrand(''); }}
-                        className="px-3 rounded-xl bg-primary-50 text-primary-600 text-sm font-medium hover:bg-primary-100 transition-colors whitespace-nowrap"
-                        title="Criar nova bandeira">
-                        <Plus className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <input className="input flex-1" placeholder="Nova bandeira" value={customBrand} onChange={(e) => setCustomBrand(e.target.value)} autoFocus />
-                      <button type="button" onClick={() => { setCustomBrandMode(false); setCustomBrand(''); }}
-                        className="px-3 rounded-xl bg-neutral-100 text-neutral-500 text-sm font-medium hover:bg-neutral-200 transition-colors whitespace-nowrap"
-                        title="Voltar para lista">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowBrandModal(true)}
+                    className="input text-left flex items-center justify-between"
+                  >
+                    <span className={brand ? 'text-neutral-800' : 'text-neutral-400'}>
+                      {brand || 'Selecione'}
+                    </span>
+                    {allBrands.length === 0 && (
+                      <span className="text-xs text-warning-600">Adicionar</span>
+                    )}
+                  </button>
                 </div>
                 <div>
                   <label className="label">Últimos 4 dígitos</label>
@@ -289,6 +263,14 @@ export default function CardsPage() {
           </div>
         </div>
       )}
+
+      <BrandManageModal
+        open={showBrandModal}
+        onClose={() => setShowBrandModal(false)}
+        spaceId={activeSpaceId}
+        selectedBrand={brand}
+        onSelect={(b) => setBrand(b)}
+      />
     </div>
   );
 }

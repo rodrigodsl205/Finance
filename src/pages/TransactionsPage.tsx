@@ -15,8 +15,18 @@ import {
   TRANSACTION_TYPE_LABELS, TRANSACTION_STATUS_LABELS,
   DATE_CRITERION_LABELS,
 } from '@/types';
-import type { TransactionType, TransactionStatus, DateCriterion, Transaction, SplitType } from '@/types';
+import type { TransactionType, TransactionStatus, DateCriterion, Transaction, SplitType, Category } from '@/types';
 import { accountDisplayLabel } from '@/types';
+
+function categoryPath(cats: Category[], id: string): string {
+  const cat = cats.find(c => c.id === id);
+  if (!cat) return '';
+  if (cat.parent_id) {
+    const parentPath = categoryPath(cats, cat.parent_id);
+    return parentPath ? `${parentPath} > ${cat.name}` : cat.name;
+  }
+  return cat.name;
+}
 
 const STATUS_STYLES: Record<TransactionStatus, string> = {
   pending: 'bg-accent-100 text-accent-700',
@@ -359,7 +369,7 @@ export default function TransactionsPage() {
               <label className="text-xs text-neutral-400 block mb-1">Categoria</label>
               <select className="input py-2 text-sm w-auto" value={filterCategory ?? ''} onChange={(e) => setFilterCategory(e.target.value || undefined)}>
                 <option value="">Todas</option>
-                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {categories.map(c => <option key={c.id} value={c.id}>{categoryPath(categories, c.id)}</option>)}
               </select>
             </div>
             <div>
@@ -550,9 +560,9 @@ export default function TransactionsPage() {
                         onClick={() => setShowCategoryModal(true)}
                         className="input text-left flex items-center justify-between"
                       >
-                        <span className={formCategory ? 'text-neutral-800' : 'text-neutral-400'}>
+                        <span className={formCategory ? 'text-neutral-800 truncate' : 'text-neutral-400'}>
                           {formCategory
-                            ? categories.find(c => c.id === formCategory)?.name ?? 'Selecionar'
+                            ? categoryPath(categories, formCategory) ?? 'Selecionar'
                             : 'Selecione'}
                         </span>
                         {categories.filter(c => formType === 'income' ? c.kind === 'income' : c.kind === 'expense').length === 0 && (

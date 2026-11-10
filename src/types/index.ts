@@ -93,6 +93,7 @@ export interface Category {
   icon: string | null;
   color: string | null;
   status: CategoryStatus;
+  parent_id: string | null;
   created_at: string;
   updated_at: string;
 }

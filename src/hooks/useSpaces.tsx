@@ -26,6 +26,7 @@ export function SpacesProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
   const autoCreateAttempted = useRef(false);
+  const spaceIdsRef = useRef<string[]>([]);
 
   const fetchMembers = useCallback(async (spaceIds: string[]) => {
     if (spaceIds.length === 0) return;
@@ -80,26 +81,56 @@ export function SpacesProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
 
-    // 1. Fetch spaces where the user is a member (via space_members join)
+    // 1. Fetch all spaces where the user is a member
     const { data: memberRows, error: memberError } = await supabase
       .from('space_members')
       .select('space_id')
       .eq('user_id', user.id);
 
-    let spaceIds: string[] = [];
+    const memberSpaceIds: Set<string> = new Set();
     if (memberError) {
       logger.error('Erro ao buscar membership', memberError.message);
     } else if (memberRows?.length) {
-      spaceIds = memberRows.map((m: { space_id: string }) => m.space_id);
+      for (const m of memberRows as { space_id: string }[]) {
+        memberSpaceIds.add(m.space_id);
+      }
     }
 
-    // 2. Fetch the actual space records for member spaces
+    // 2. Fetch all spaces owned by the user (merge, not fallback)
+    const { data: ownedSpaces, error: ownedError } = await supabase
+      .from('financial_spaces')
+      .select('*')
+      .eq('owner_id', user.id)
+      .order('created_at', { ascending: true });
+
+    const ownedSpaceIds: Set<string> = new Set();
+    if (ownedError) {
+      logger.error('Erro ao buscar espaços criados', ownedError.message);
+    } else if (ownedSpaces) {
+      for (const s of ownedSpaces as FinancialSpace[]) {
+        ownedSpaceIds.add(s.id);
+      }
+    }
+
+    // 3. Merge: all space IDs the user can access (member OR owner)
+    const allSpaceIds = new Set<string>([...memberSpaceIds, ...ownedSpaceIds]);
+
+    // 4. Ensure membership rows exist for owned spaces (fixes orphaned spaces)
+    for (const sid of ownedSpaceIds) {
+      if (!memberSpaceIds.has(sid)) {
+        await supabase
+          .from('space_members')
+          .upsert({ space_id: sid, user_id: user.id, role: 'owner' }, { onConflict: 'space_id,user_id' });
+      }
+    }
+
+    // 5. Fetch the actual space records for all merged IDs
     let collectedSpaces: FinancialSpace[] = [];
-    if (spaceIds.length > 0) {
+    if (allSpaceIds.size > 0) {
       const { data: spaceRows, error: spaceError } = await supabase
         .from('financial_spaces')
         .select('*')
-        .in('id', spaceIds)
+        .in('id', Array.from(allSpaceIds))
         .order('created_at', { ascending: true });
 
       if (spaceError) {
@@ -109,47 +140,27 @@ export function SpacesProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // 3. Fallback: if no member spaces found, try spaces created by the user directly
-    if (collectedSpaces.length === 0) {
-      const { data: createdSpaces, error: createdError } = await supabase
-        .from('financial_spaces')
-        .select('*')
-        .eq('owner_id', user.id)
-        .order('created_at', { ascending: true });
-
-      if (createdError) {
-        logger.error('Erro ao buscar espaços criados', createdError.message);
-      } else if (createdSpaces) {
-        collectedSpaces = createdSpaces as FinancialSpace[];
-        // Ensure membership rows exist for these spaces
-        for (const sp of collectedSpaces) {
-          await supabase
-            .from('space_members')
-            .upsert({ space_id: sp.id, user_id: user.id, role: 'owner' }, { onConflict: 'space_id,user_id' });
-        }
-        spaceIds = collectedSpaces.map(s => s.id);
-      }
-    }
-
-    // 4. Auto-create fallback: if still empty, create a default personal space
+    // 6. Auto-create fallback: if still empty, create a default personal space
     if (collectedSpaces.length === 0 && !autoCreateAttempted.current) {
       autoCreateAttempted.current = true;
       logger.info('Nenhum espaço encontrado. Criando espaço padrão automaticamente.');
       const newSpace = await createDefaultSpace(user.id);
       if (newSpace) {
         collectedSpaces = [newSpace];
-        spaceIds = [newSpace.id];
       } else {
         setError('Não foi possível criar um espaço automaticamente. Tente recarregar a página.');
       }
     }
 
+    const finalSpaceIds = collectedSpaces.map(s => s.id);
+    spaceIdsRef.current = finalSpaceIds;
+
     setSpaces(collectedSpaces);
 
-    // 5. Fetch members for all spaces
-    await fetchMembers(spaceIds);
+    // 7. Fetch members for all spaces
+    await fetchMembers(finalSpaceIds);
 
-    // 6. Auto-select first space if none is selected or the selected one no longer exists
+    // 8. Auto-select first space if none is selected or the selected one no longer exists
     setActiveSpaceId((prev) => {
       if (prev && collectedSpaces.some(s => s.id === prev)) return prev;
       if (collectedSpaces.length > 0) return collectedSpaces[0].id;
@@ -164,17 +175,18 @@ export function SpacesProvider({ children }: { children: ReactNode }) {
     fetchSpaces();
   }, [fetchSpaces]);
 
+  // Realtime: subscribe once, use ref to track which spaces to watch
   useEffect(() => {
-    if (!user || spaces.length === 0) return;
+    if (!user) return;
 
     const channel = supabase
       .channel('spaces-changes')
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'financial_spaces', filter: `id=in.(${spaces.map(s => s.id).join(',')})` },
+        { event: '*', schema: 'public', table: 'financial_spaces' },
         () => { fetchSpaces(); }
       )
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'space_members', filter: `space_id=in.(${spaces.map(s => s.id).join(',')})` },
+        { event: '*', schema: 'public', table: 'space_members', filter: `user_id=eq.${user.id}` },
         () => { fetchSpaces(); }
       )
       .subscribe();
@@ -182,7 +194,7 @@ export function SpacesProvider({ children }: { children: ReactNode }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, spaces, fetchSpaces]);
+  }, [user, fetchSpaces]);
 
   const changeActiveSpace = useCallback((spaceId: string) => {
     setActiveSpaceId(spaceId);
