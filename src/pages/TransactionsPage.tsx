@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, Search, Filter, X, Edit3, AlertTriangle, RefreshCw, Users } from 'lucide-react';
+import { Plus, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, Search, Filter, X, Edit3, AlertTriangle, RefreshCw, Users, CreditCard, User, Heart } from 'lucide-react';
 import { useTransactions, useCategories, useAccounts, usePaymentMethods, useCards, useInvoices, type TransactionFilters } from '@/hooks/useFinance';
 import { useAuth } from '@/hooks/useAuth';
 import { useSpaces } from '@/hooks/useSpaces';
@@ -10,12 +10,14 @@ import { isValidCpfCnpj } from '@/lib/cpfCnpj';
 import { logger } from '@/lib/logger';
 import CategoryManageModal from '@/components/CategoryManageModal';
 import PaymentMethodManageModal from '@/components/PaymentMethodManageModal';
+import CardModal from '@/components/CardModal';
+import QuickInvoiceModal from '@/components/QuickInvoiceModal';
 import { formatDateBR, todayISO, getCurrentMonthRange, monthLabel, cardDisplayLabel } from '@/lib/dates';
 import {
   TRANSACTION_TYPE_LABELS, TRANSACTION_STATUS_LABELS,
   DATE_CRITERION_LABELS,
 } from '@/types';
-import type { TransactionType, TransactionStatus, DateCriterion, Transaction, SplitType, Category } from '@/types';
+import type { TransactionType, TransactionStatus, DateCriterion, Transaction, SplitType, Category, Card, Invoice } from '@/types';
 import { accountDisplayLabel } from '@/types';
 
 function categoryPath(cats: Category[], id: string): string {
@@ -40,6 +42,20 @@ const SPLIT_LABELS: Record<SplitType, string> = {
   equal: 'Dividir igual',
   percent: 'Por percentual',
   custom: 'Valores personalizados',
+};
+
+type ResponsibilityType = 'mine' | 'partner' | 'shared';
+const RESPONSIBILITY_LABELS: Record<ResponsibilityType, string> = {
+  mine: 'Minha despesa',
+  partner: 'Despesa do(a) parceiro(a)',
+  shared: 'Despesa do casal',
+};
+
+type PayerType = 'me' | 'partner' | 'both';
+const PAYER_LABELS: Record<PayerType, string> = {
+  me: 'Eu paguei tudo',
+  partner: 'Parceiro(a) pagou tudo',
+  both: 'Ambos pagaram',
 };
 
 export default function TransactionsPage() {
@@ -70,8 +86,8 @@ export default function TransactionsPage() {
   const { categories, refresh: refreshCategories } = useCategories();
   const { accounts } = useAccounts();
   const { paymentMethods, refresh: refreshPaymentMethods } = usePaymentMethods();
-  const { cards } = useCards();
-  const { invoices } = useInvoices();
+  const { cards, refresh: refreshCards } = useCards();
+  const { invoices, refresh: refreshInvoices } = useInvoices();
 
   // Form state
   const [formType, setFormType] = useState<TransactionType>('expense');
@@ -85,7 +101,7 @@ export default function TransactionsPage() {
   const [formPaidAt, setFormPaidAt] = useState('');
   const [formNotes, setFormNotes] = useState('');
 
-  // New fields: establishment, CPF/CNPJ, payment method, card
+  // Establishment, CPF/CNPJ, payment method, card
   const [formEstablishment, setFormEstablishment] = useState('');
   const [establishmentNotInformed, setEstablishmentNotInformed] = useState(false);
   const [formCpfCnpj, setFormCpfCnpj] = useState('');
@@ -102,17 +118,119 @@ export default function TransactionsPage() {
   const [splitType, setSplitType] = useState<SplitType>('individual');
   const [splitMembers, setSplitMembers] = useState<Record<string, string>>({});
 
+  // Responsibility & payment distribution
+  const [responsibility, setResponsibility] = useState<ResponsibilityType>('mine');
+  const [payerType, setPayerType] = useState<PayerType>('me');
+  const [myPayAmount, setMyPayAmount] = useState('');
+  const [partnerPayAmount, setPartnerPayAmount] = useState('');
+
+  // Modal visibility
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
+  const [showCardModal, setShowCardModal] = useState(false);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
-  // Detect if the selected payment method is a card-based method
   const selectedPaymentMethod = paymentMethods.find(pm => pm.id === formPaymentMethod);
   const isCardPayment = selectedPaymentMethod?.name.startsWith('Cartão ') ?? false;
   const cardInvoices = formCard ? invoices.filter(inv => inv.card_id === formCard && inv.status !== 'paid') : [];
 
+  const partner = activeMembers.find(m => m.user_id !== user?.id);
   const members = activeMembers.filter(m => m.user_id !== user?.id);
+
+  function getResponsibilityAndPayer(): {
+    responsibleId: string | null;
+    payerId: string | null;
+    payerAmountCents: number | null;
+    secondaryPayerId: string | null;
+    secondaryPayerAmountCents: number | null;
+  } {
+    const partnerId = partner?.user_id ?? null;
+    const myId = user?.id ?? null;
+
+    if (responsibility === 'mine') {
+      return {
+        responsibleId: myId,
+        payerId: payerType === 'partner' ? partnerId : myId,
+        payerAmountCents: payerType === 'partner' ? null : null,
+        secondaryPayerId: null,
+        secondaryPayerAmountCents: null,
+      };
+    }
+    if (responsibility === 'partner') {
+      return {
+        responsibleId: partnerId,
+        payerId: payerType === 'me' ? myId : partnerId,
+        payerAmountCents: null,
+        secondaryPayerId: null,
+        secondaryPayerAmountCents: null,
+      };
+    }
+    // shared
+    if (payerType === 'both') {
+      const myCents = parseCurrencyInput(myPayAmount || '0');
+      const partnerCents = parseCurrencyInput(partnerPayAmount || '0');
+      return {
+        responsibleId: null,
+        payerId: myId,
+        payerAmountCents: myCents > 0 ? myCents : null,
+        secondaryPayerId: partnerId,
+        secondaryPayerAmountCents: partnerCents > 0 ? partnerCents : null,
+      };
+    }
+    return {
+      responsibleId: null,
+      payerId: payerType === 'partner' ? partnerId : myId,
+      payerAmountCents: null,
+      secondaryPayerId: null,
+      secondaryPayerAmountCents: null,
+    };
+  }
+
+  async function createSettlementIfNeeded(txId: string, totalCents: number) {
+    if (responsibility === 'shared' && payerType === 'both' && partner) {
+      const myCents = parseCurrencyInput(myPayAmount || '0');
+      const partnerCents = parseCurrencyInput(partnerPayAmount || '0');
+      const myId = user?.id;
+      if (!myId) return;
+
+      // If partner paid more than their share, I owe them
+      // Each person's share = totalCents / 2
+      const halfShare = Math.floor(totalCents / 2);
+      const myOwedShare = totalCents - halfShare; // my share of the expense
+
+      // If I paid less than my share, I owe partner the difference
+      if (myCents < myOwedShare && partnerCents > halfShare) {
+        const oweAmount = myOwedShare - myCents;
+        if (oweAmount > 0) {
+          await supabase.from('settlements').insert({
+            space_id: activeSpaceId,
+            from_member_id: myId,
+            to_member_id: partner.user_id,
+            amount_cents: oweAmount,
+            status: 'pending',
+            notes: `Acerto referente ao lançamento: ${formDescription.trim()}`,
+            created_by: myId,
+          });
+        }
+      } else if (partnerCents < halfShare && myCents > myOwedShare) {
+        // Partner paid less, they owe me
+        const oweAmount = halfShare - partnerCents;
+        if (oweAmount > 0) {
+          await supabase.from('settlements').insert({
+            space_id: activeSpaceId,
+            from_member_id: partner.user_id,
+            to_member_id: myId,
+            amount_cents: oweAmount,
+            status: 'pending',
+            notes: `Acerto referente ao lançamento: ${formDescription.trim()}`,
+            created_by: myId,
+          });
+        }
+      }
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -120,11 +238,23 @@ export default function TransactionsPage() {
     if (formType !== 'transfer' && !formCategory) return;
     if (formType !== 'transfer' && !formPaymentMethod) return;
     if (formType !== 'transfer' && !establishmentNotInformed && !formEstablishment.trim()) return;
+
+    // Validate shared payment distribution
+    if (responsibility === 'shared' && payerType === 'both') {
+      const totalCents = parseCurrencyInput(formAmount);
+      const myCents = parseCurrencyInput(myPayAmount || '0');
+      const partnerCents = parseCurrencyInput(partnerPayAmount || '0');
+      if (myCents + partnerCents !== totalCents) {
+        setError(`A soma dos pagamentos (${centsToBRL(myCents + partnerCents)}) deve ser igual ao valor total (${centsToBRL(totalCents)}).`);
+        setSaving(false);
+        return;
+      }
+    }
+
     setSaving(true);
     setError(null);
     setConflict(null);
 
-    // CPF/CNPJ validation
     if (formType !== 'transfer' && !establishmentNotInformed && formCpfCnpj.trim()) {
       const validation = isValidCpfCnpj(formCpfCnpj);
       if (!validation.valid) {
@@ -136,6 +266,7 @@ export default function TransactionsPage() {
 
     const amountCents = parseCurrencyInput(formAmount);
     const status: TransactionStatus = formPaid ? 'paid' : 'pending';
+    const resp = getResponsibilityAndPayer();
 
     const payload: Record<string, unknown> = {
       type: formType,
@@ -143,6 +274,11 @@ export default function TransactionsPage() {
       amount_cents: amountCents,
       category_id: formType === 'transfer' ? null : (formCategory || null),
       account_id: formAccount || null,
+      responsible_id: formType === 'transfer' ? null : resp.responsibleId,
+      payer_id: formType === 'transfer' ? null : resp.payerId,
+      payer_amount_cents: formType === 'transfer' ? null : resp.payerAmountCents,
+      secondary_payer_id: formType === 'transfer' ? null : resp.secondaryPayerId,
+      secondary_payer_amount_cents: formType === 'transfer' ? null : resp.secondaryPayerAmountCents,
       occurred_at: formOccurredAt,
       due_date: formDueDate || null,
       paid_at: formPaid ? (formPaidAt || todayISO()) : null,
@@ -155,7 +291,6 @@ export default function TransactionsPage() {
       card_id: formType === 'transfer' ? null : (formCard || null),
     };
 
-    // Transfer destination
     if (formType === 'transfer') {
       if (transferMode === 'account') {
         payload.destination_account_id = formDestAccount || null;
@@ -186,7 +321,6 @@ export default function TransactionsPage() {
         return;
       }
 
-      // Update splits if applicable
       if (formType !== 'transfer' && splitType !== 'individual') {
         await saveSplits(editingTx.id, amountCents);
       } else {
@@ -207,6 +341,10 @@ export default function TransactionsPage() {
         await saveSplits(txData.id, amountCents);
       }
 
+      if (formType !== 'transfer') {
+        await createSettlementIfNeeded(txData.id, amountCents);
+      }
+
       setShowModal(false); resetForm(); refresh();
     }
     setSaving(false);
@@ -218,7 +356,7 @@ export default function TransactionsPage() {
     if (splitType === 'equal') {
       const memberIds = Object.keys(splitMembers);
       if (memberIds.length === 0) return;
-      const perPerson = Math.floor(totalCents / (memberIds.length + 1)); // +1 for current user
+      const perPerson = Math.floor(totalCents / (memberIds.length + 1));
       const remainder = totalCents - perPerson * (memberIds.length + 1);
       const inserts = memberIds.map((mid, i) => ({
         transaction_id: txId,
@@ -253,6 +391,8 @@ export default function TransactionsPage() {
     setFormPaymentMethod(''); setFormCard(''); setFormInvoice('');
     setTransferMode('account'); setFormDestAccount(''); setFormDestMember('');
     setSplitType('individual'); setSplitMembers({});
+    setResponsibility('mine'); setPayerType('me');
+    setMyPayAmount(''); setPartnerPayAmount('');
     setError(null); setConflict(null);
   }
 
@@ -286,6 +426,27 @@ export default function TransactionsPage() {
         : (s.share_cents / 100).toFixed(2).replace('.', ',');
     });
     setSplitMembers(existingSplits);
+
+    // Restore responsibility & payer state
+    const partnerId = partner?.user_id ?? '';
+    if (tx.responsible_id === user?.id) {
+      setResponsibility('mine');
+      setPayerType(tx.payer_id === partnerId ? 'partner' : 'me');
+    } else if (tx.responsible_id === partnerId) {
+      setResponsibility('partner');
+      setPayerType(tx.payer_id === user?.id ? 'me' : 'partner');
+    } else {
+      setResponsibility('shared');
+      if (tx.secondary_payer_id) {
+        setPayerType('both');
+        setMyPayAmount(tx.payer_amount_cents ? formatCurrencyInput(String(tx.payer_amount_cents)) : '');
+        setPartnerPayAmount(tx.secondary_payer_amount_cents ? formatCurrencyInput(String(tx.secondary_payer_amount_cents)) : '');
+      } else {
+        setPayerType(tx.payer_id === partnerId ? 'partner' : 'me');
+        setMyPayAmount(''); setPartnerPayAmount('');
+      }
+    }
+
     setShowModal(true);
   }
 
@@ -307,6 +468,17 @@ export default function TransactionsPage() {
 
   function handleConflictReload() {
     setShowModal(false); setEditingTx(null); setConflict(null); resetForm(); refresh();
+  }
+
+  function handleCardCreated(card: Card) {
+    refreshCards();
+    setFormCard(card.id);
+    setFormInvoice('');
+  }
+
+  function handleInvoiceCreated(invoice: Invoice) {
+    refreshInvoices();
+    setFormInvoice(invoice.id);
   }
 
   const filtered = transactions.filter(t =>
@@ -421,6 +593,17 @@ export default function TransactionsPage() {
                   {tx.split_type !== 'individual' && tx.splits && tx.splits.length > 0 && (
                     <span className="badge bg-primary-50 text-primary-600 shrink-0">
                       <Users className="w-3 h-3 mr-0.5" /> {tx.splits.length + 1}
+                    </span>
+                  )}
+                  {tx.responsible_id && tx.responsible_id !== user?.id && tx.type !== 'transfer' && (
+                    <span className="badge bg-accent-50 text-accent-600 shrink-0">
+                      <User className="w-3 h-3 mr-0.5" />
+                      {tx.responsible_id === partner?.user_id ? 'Parceiro(a)' : 'Outro'}
+                    </span>
+                  )}
+                  {tx.responsible_id === null && tx.type !== 'transfer' && tx.secondary_payer_id && (
+                    <span className="badge bg-primary-50 text-primary-600 shrink-0">
+                      <Heart className="w-3 h-3 mr-0.5" /> Casal
                     </span>
                   )}
                 </div>
@@ -617,6 +800,71 @@ export default function TransactionsPage() {
                     </div>
                   )}
 
+                  {/* Responsibility selector (shared spaces only) */}
+                  {members.length > 0 && (
+                    <div className="space-y-3 p-3 rounded-xl bg-neutral-50 border border-neutral-100">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-neutral-500" />
+                        <label className="text-sm font-medium text-neutral-700">Responsabilidade</label>
+                      </div>
+                      <div className="flex gap-2">
+                        {(['mine', 'partner', 'shared'] as ResponsibilityType[]).map(r => (
+                          <button key={r} type="button" onClick={() => { setResponsibility(r); setPayerType('me'); setMyPayAmount(''); setPartnerPayAmount(''); }}
+                            className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${
+                              responsibility === r
+                                ? r === 'mine' ? 'bg-primary-600 text-white'
+                                  : r === 'partner' ? 'bg-accent-500 text-white'
+                                  : 'bg-primary-600 text-white'
+                                : 'bg-white text-neutral-500 border border-neutral-200 hover:bg-neutral-100'
+                            }`}>
+                            {RESPONSIBILITY_LABELS[r]}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Payer distribution */}
+                      <div className="pt-1">
+                        <label className="text-xs text-neutral-500 block mb-1.5">Quem pagou</label>
+                        <div className="flex gap-2">
+                          {(['me', 'partner', 'both'] as PayerType[]).map(p => (
+                            <button key={p} type="button" onClick={() => { setPayerType(p); setMyPayAmount(''); setPartnerPayAmount(''); }}
+                              className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${
+                                payerType === p ? 'bg-primary-600 text-white' : 'bg-white text-neutral-500 border border-neutral-200 hover:bg-neutral-100'
+                              }`}>
+                              {PAYER_LABELS[p]}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Amount inputs for "both" mode */}
+                      {payerType === 'both' && formAmount && (
+                        <div className="grid grid-cols-2 gap-3 pt-1">
+                          <div>
+                            <label className="text-xs text-neutral-500 block mb-1">Quanto eu paguei</label>
+                            <input className="input py-2 text-sm" placeholder="0,00"
+                              value={myPayAmount}
+                              onChange={(e) => setMyPayAmount(formatCurrencyInput(e.target.value))}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-neutral-500 block mb-1">Quanto o(a) parceiro(a) pagou</label>
+                            <input className="input py-2 text-sm" placeholder="0,00"
+                              value={partnerPayAmount}
+                              onChange={(e) => setPartnerPayAmount(formatCurrencyInput(e.target.value))}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {responsibility === 'shared' && payerType === 'both' && formAmount && (
+                        <p className="text-xs text-primary-600">
+                          Um acerto será criado automaticamente em "Acertos" para registrar a dívida entre vocês.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {/* Split section (only for expenses in shared spaces) */}
                   {formType === 'expense' && members.length > 0 && (
                     <div className="space-y-3 p-3 rounded-xl bg-neutral-50 border border-neutral-100">
@@ -662,10 +910,17 @@ export default function TransactionsPage() {
                 </>
               )}
 
+              {/* Card & Invoice selection with inline creation */}
               {formType !== 'transfer' && isCardPayment && (
                 <div className="space-y-3 p-3 rounded-xl bg-blue-50/50 border border-blue-100">
                   <div>
-                    <label className="label">Cartão</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="label mb-0">Cartão</label>
+                      <button type="button" onClick={() => setShowCardModal(true)}
+                        className="text-xs text-primary-600 hover:text-primary-800 font-medium flex items-center gap-1">
+                        <Plus className="w-3.5 h-3.5" /> Novo cartão
+                      </button>
+                    </div>
                     <select className="input" value={formCard} onChange={(e) => { setFormCard(e.target.value); setFormInvoice(''); }} required>
                       <option value="">Selecione o cartão</option>
                       {cards.map(c => <option key={c.id} value={c.id}>{cardDisplayLabel(c)}</option>)}
@@ -673,7 +928,13 @@ export default function TransactionsPage() {
                   </div>
                   {formCard && (
                     <div>
-                      <label className="label">Fatura</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="label mb-0">Fatura</label>
+                        <button type="button" onClick={() => setShowInvoiceModal(true)}
+                          className="text-xs text-primary-600 hover:text-primary-800 font-medium flex items-center gap-1">
+                          <Plus className="w-3.5 h-3.5" /> Nova fatura
+                        </button>
+                      </div>
                       <select className="input" value={formInvoice} onChange={(e) => setFormInvoice(e.target.value)} required>
                         <option value="">Selecione a fatura</option>
                         {cardInvoices.length > 0 ? (
@@ -687,7 +948,7 @@ export default function TransactionsPage() {
                         )}
                       </select>
                       {cardInvoices.length === 0 && (
-                        <p className="text-xs text-warning-600 mt-1">Crie uma fatura para este cartão na aba Faturas.</p>
+                        <p className="text-xs text-warning-600 mt-1">Crie uma fatura para este cartão clicando em "Nova fatura" acima.</p>
                       )}
                     </div>
                   )}
@@ -753,6 +1014,27 @@ export default function TransactionsPage() {
         filterKind={formType === 'income' ? 'income' : 'expense'}
         selectedId={formPaymentMethod}
         onSelect={(pm) => { setFormPaymentMethod(pm.id); setFormCard(''); setFormInvoice(''); }}
+      />
+
+      {/* Inline card creation modal */}
+      <CardModal
+        open={showCardModal}
+        onClose={() => setShowCardModal(false)}
+        spaceId={activeSpaceId}
+        userId={user?.id ?? null}
+        onSaved={refreshCards}
+        cards={cards}
+        selectMode
+        onSelect={(card) => { setFormCard(card.id); setFormInvoice(''); }}
+      />
+
+      {/* Inline invoice creation modal */}
+      <QuickInvoiceModal
+        open={showInvoiceModal}
+        onClose={() => setShowInvoiceModal(false)}
+        spaceId={activeSpaceId}
+        card={formCard ? cards.find(c => c.id === formCard) ?? null : null}
+        onCreated={handleInvoiceCreated}
       />
     </div>
   );

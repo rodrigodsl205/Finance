@@ -113,6 +113,9 @@ export interface Transaction {
   account_id: string | null;
   responsible_id: string | null;
   payer_id: string | null;
+  payer_amount_cents: number | null;
+  secondary_payer_id: string | null;
+  secondary_payer_amount_cents: number | null;
   destination_account_id: string | null;
   destination_member_id: string | null;
   establishment: string | null;

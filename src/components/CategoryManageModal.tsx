@@ -282,10 +282,28 @@ export default function CategoryManageModal({ open, onClose, spaceId, onSaved, f
               <ArrowUpCircle className="w-4 h-4 text-success-500" />,
               'income'
             )}
-            {selectMode && categories.length > 0 && (
-              <button onClick={() => openNew(filterKind ?? 'expense')} className="btn-secondary w-full text-sm">
-                <Plus className="w-4 h-4" /> Nova categoria
-              </button>
+            {selectMode && (
+              <div className="space-y-3">
+                <div>
+                  <label className="label">Criar subcategoria sob (opcional)</label>
+                  <select className="input py-2 text-sm" value={parentId ?? ''} onChange={(e) => setParentId(e.target.value || null)}>
+                    <option value="">Categoria raiz</option>
+                    {categories
+                      .filter(c => !filterKind || c.kind === filterKind)
+                      .filter(c => {
+                        if (!parentId) return true;
+                        return c.id !== parentId;
+                      })
+                      .map(c => (
+                        <option key={c.id} value={c.id}>{categoryPath(categories, c.id)}</option>
+                      ))
+                    }
+                  </select>
+                </div>
+                <button onClick={() => openNew(filterKind ?? 'expense', parentId ? categories.find(c => c.id === parentId) ?? null : null)} className="btn-secondary w-full text-sm">
+                  <Plus className="w-4 h-4" /> {parentId ? 'Nova subcategoria' : 'Nova categoria'}
+                </button>
+              </div>
             )}
             {!selectMode && (
               <button onClick={() => openNew('expense')} className="btn-secondary w-full text-sm">
