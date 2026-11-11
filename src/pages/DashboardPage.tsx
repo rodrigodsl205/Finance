@@ -89,7 +89,7 @@ export default function DashboardPage() {
   if (spaceLoading || loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="animate-pulse text-neutral-400">Carregando...</div>
+        <div className="animate-pulse text-slate-400">Carregando...</div>
       </div>
     );
   }
@@ -97,9 +97,9 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-neutral-900">Olá, {profile?.display_name?.split(' ')[0]}</h1>
-        <p className="text-sm text-neutral-500 mt-1">
-          Espaço: <span className="font-medium text-neutral-700">{activeSpace?.name ?? '—'}</span>
+        <h1 className="text-2xl font-bold text-slate-900">Olá, {profile?.display_name?.split(' ')[0]}</h1>
+        <p className="text-sm text-slate-500 mt-1">
+          Espaço: <span className="font-medium text-slate-700">{activeSpace?.name ?? '—'}</span>
         </p>
       </div>
 
@@ -122,68 +122,68 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="card p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm text-neutral-500">Saldo das contas</span>
-            <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center">
-              <Wallet className="w-5 h-5 text-primary-600" />
+            <span className="text-sm text-slate-500">Saldo das contas</span>
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-emerald-600" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">{centsToBRL(totalBalance)}</p>
-          <p className="text-xs text-neutral-400 mt-1">
+          <p className="text-2xl font-bold tracking-tight text-slate-900">{centsToBRL(totalBalance)}</p>
+          <p className="text-xs text-slate-400 mt-1">
             {accountCount === 0 ? 'Nenhuma conta' : `${accountCount} ${accountCount === 1 ? 'conta' : 'contas'}`}
           </p>
         </div>
 
         <div className="card p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm text-neutral-500">Receitas (mês)</span>
-            <div className="w-9 h-9 rounded-xl bg-success-50 flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-success-600" />
+            <span className="text-sm text-slate-500">Receitas (mês)</span>
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-emerald-600" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-success-700">{centsToBRL(summary.income)}</p>
-          <p className="text-xs text-neutral-400 mt-1">
+          <p className="text-2xl font-bold tracking-tight text-emerald-700">{centsToBRL(summary.income)}</p>
+          <p className="text-xs text-slate-400 mt-1">
             {transactions.filter(t => t.type === 'income').length} lançamentos
           </p>
         </div>
 
         <div className="card p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm text-neutral-500">Despesas (mês)</span>
-            <div className="w-9 h-9 rounded-xl bg-danger-50 flex items-center justify-center">
-              <TrendingDown className="w-5 h-5 text-danger-600" />
+            <span className="text-sm text-slate-500">Despesas (mês)</span>
+            <div className="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center">
+              <TrendingDown className="w-5 h-5 text-rose-600" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-danger-700">{centsToBRL(summary.expenses)}</p>
-          <p className="text-xs text-neutral-400 mt-1">
+          <p className="text-2xl font-bold tracking-tight text-rose-600">{centsToBRL(summary.expenses)}</p>
+          <p className="text-xs text-slate-400 mt-1">
             {transactions.filter(t => t.type === 'expense').length} lançamentos
           </p>
         </div>
 
         <div className="card p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm text-neutral-500">Pendentes</span>
-            <div className="w-9 h-9 rounded-xl bg-accent-50 flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-accent-600" />
+            <span className="text-sm text-slate-500">Pendentes</span>
+            <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center">
+              <Calendar className="w-5 h-5 text-amber-600" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">{centsToBRL(summary.pending)}</p>
-          <p className="text-xs text-neutral-400 mt-1">Aguardando pagamento</p>
+          <p className="text-2xl font-bold tracking-tight text-slate-900">{centsToBRL(summary.pending)}</p>
+          <p className="text-xs text-slate-400 mt-1">Aguardando pagamento</p>
         </div>
       </div>
 
       {/* Recent activity */}
       <div className="card p-5">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-neutral-900">Atividade recente</h2>
+          <h2 className="text-sm font-semibold text-slate-700">Atividade recente</h2>
           <span className="text-xs text-neutral-400">{monthStr}</span>
         </div>
 
         {transactions.length === 0 ? (
           <div className="text-center py-8">
-            <div className="w-14 h-14 rounded-2xl bg-neutral-100 flex items-center justify-center mx-auto mb-3">
-              <ArrowLeftRight className="w-7 h-7 text-neutral-400" />
+            <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+              <ArrowLeftRight className="w-7 h-7 text-slate-400" />
             </div>
-            <p className="text-sm text-neutral-500">
+            <p className="text-sm text-slate-500">
               Nenhum lançamento em {monthStr}. Registre sua primeira receita ou despesa.
             </p>
           </div>
@@ -192,11 +192,11 @@ export default function DashboardPage() {
             {transactions.map((tx) => (
               <div key={tx.id} className="flex items-center gap-3 py-2 px-3 rounded-xl hover:bg-neutral-50 transition-colors">
                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                  tx.type === 'income' ? 'bg-success-50' : tx.type === 'transfer' ? 'bg-primary-50' : 'bg-danger-50'
+                  tx.type === 'income' ? 'bg-emerald-50' : tx.type === 'transfer' ? 'bg-violet-50' : 'bg-rose-50'
                 }`}>
-                  {tx.type === 'income' ? <TrendingUp className="w-4 h-4 text-success-600" /> :
-                   tx.type === 'transfer' ? <ArrowLeftRight className="w-4 h-4 text-primary-600" /> :
-                   <TrendingDown className="w-4 h-4 text-danger-600" />}
+                  {tx.type === 'income' ? <TrendingUp className="w-4 h-4 text-emerald-600" /> :
+                   tx.type === 'transfer' ? <ArrowLeftRight className="w-4 h-4 text-violet-600" /> :
+                   <TrendingDown className="w-4 h-4 text-rose-600" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-neutral-900 truncate">{tx.description}</p>
@@ -205,7 +205,7 @@ export default function DashboardPage() {
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className={`text-sm font-semibold ${tx.type === 'income' ? 'text-success-600' : tx.type === 'expense' ? 'text-danger-600' : 'text-neutral-600'}`}>
+                  <p className={`text-sm font-semibold ${tx.type === 'income' ? 'text-emerald-600' : tx.type === 'expense' ? 'text-rose-600' : 'text-slate-600'}`}>
                     {tx.type === 'income' ? '+' : tx.type === 'expense' ? '−' : ''}{centsToBRL(tx.amount_cents)}
                   </p>
                   <p className="text-xs text-neutral-400">{TRANSACTION_STATUS_LABELS[tx.status]}</p>
@@ -219,11 +219,11 @@ export default function DashboardPage() {
       {/* Empty state for new users */}
       {transactions.length === 0 && accountCount === 0 && (
         <div className="card p-12 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-primary-50 flex items-center justify-center mx-auto mb-4">
-            <CreditCard className="w-8 h-8 text-primary-600" />
+          <div className="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-4">
+            <CreditCard className="w-8 h-8 text-emerald-600" />
           </div>
-          <h3 className="text-lg font-semibold text-neutral-900 mb-1">Bem-vindo ao DualCash!</h3>
-          <p className="text-sm text-neutral-500 max-w-md mx-auto">
+          <h3 className="text-lg font-semibold text-slate-900 mb-1">Bem-vindo ao DualCash!</h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto">
             Comece cadastrando suas contas e categorias, depois registre seus primeiros lançamentos.
             Tudo se sincroniza em tempo real entre os dispositivos.
           </p>

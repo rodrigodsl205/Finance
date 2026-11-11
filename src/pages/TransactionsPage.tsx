@@ -31,10 +31,10 @@ function categoryPath(cats: Category[], id: string): string {
 }
 
 const STATUS_STYLES: Record<TransactionStatus, string> = {
-  pending: 'bg-accent-100 text-accent-700',
-  paid: 'bg-success-100 text-success-700',
-  partial: 'bg-warning-100 text-warning-700',
-  cancelled: 'bg-neutral-100 text-neutral-500',
+  pending: 'bg-amber-100 text-amber-700',
+  paid: 'bg-emerald-100 text-emerald-700',
+  partial: 'bg-amber-100 text-amber-700',
+  cancelled: 'bg-slate-100 text-slate-500',
 };
 
 const SPLIT_LABELS: Record<SplitType, string> = {
@@ -48,7 +48,7 @@ type ResponsibilityType = 'mine' | 'partner' | 'shared';
 const RESPONSIBILITY_LABELS: Record<ResponsibilityType, string> = {
   mine: 'Minha despesa',
   partner: 'Despesa do(a) parceiro(a)',
-  shared: 'Despesa do casal',
+  shared: 'Despesa do Casal',
 };
 
 type PayerType = 'me' | 'partner' | 'both';
@@ -512,7 +512,7 @@ export default function TransactionsPage() {
             <span className="text-neutral-400 text-sm">até</span>
             <input type="date" className="input py-2 text-sm w-auto" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
           </div>
-          <button className={`btn-ghost text-sm ${showFilters ? 'text-primary-700' : ''}`} onClick={() => setShowFilters(!showFilters)}>
+          <button className={`btn-ghost text-sm ${showFilters ? 'text-emerald-700' : ''}`} onClick={() => setShowFilters(!showFilters)}>
             <Filter className="w-4 h-4" /> Filtros
           </button>
           <div className="relative flex-1 min-w-[180px]">
@@ -551,7 +551,7 @@ export default function TransactionsPage() {
                 {accounts.map(a => <option key={a.id} value={a.id}>{accountDisplayLabel(a)}</option>)}
               </select>
             </div>
-            <button className="btn-ghost text-sm text-danger-500 self-end"
+            <button className="btn-ghost text-sm text-rose-500 self-end"
               onClick={() => { setFilterType(undefined); setFilterStatus(undefined); setFilterCategory(undefined); setFilterAccount(undefined); }}>
               Limpar
             </button>
@@ -580,29 +580,29 @@ export default function TransactionsPage() {
           {filtered.map((tx) => (
             <div key={tx.id} className="card p-4 flex items-center gap-3 group">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                tx.type === 'income' ? 'bg-success-50' : tx.type === 'transfer' ? 'bg-primary-50' : 'bg-danger-50'
+                tx.type === 'income' ? 'bg-emerald-50' : tx.type === 'transfer' ? 'bg-emerald-50' : 'bg-rose-50'
               }`}>
-                {tx.type === 'income' ? <ArrowDownCircle className="w-5 h-5 text-success-600" /> :
-                 tx.type === 'transfer' ? <ArrowLeftRight className="w-5 h-5 text-primary-600" /> :
-                 <ArrowUpCircle className="w-5 h-5 text-danger-600" />}
+                {tx.type === 'income' ? <ArrowDownCircle className="w-5 h-5 text-emerald-600" /> :
+                 tx.type === 'transfer' ? <ArrowLeftRight className="w-5 h-5 text-emerald-600" /> :
+                 <ArrowUpCircle className="w-5 h-5 text-rose-600" />}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="font-medium text-neutral-900 truncate">{tx.description}</p>
                   <span className={`badge ${STATUS_STYLES[tx.status]} shrink-0`}>{TRANSACTION_STATUS_LABELS[tx.status]}</span>
                   {tx.split_type !== 'individual' && tx.splits && tx.splits.length > 0 && (
-                    <span className="badge bg-primary-50 text-primary-600 shrink-0">
+                    <span className="badge bg-emerald-50 text-emerald-600 shrink-0">
                       <Users className="w-3 h-3 mr-0.5" /> {tx.splits.length + 1}
                     </span>
                   )}
                   {tx.responsible_id && tx.responsible_id !== user?.id && tx.type !== 'transfer' && (
-                    <span className="badge bg-accent-50 text-accent-600 shrink-0">
+                    <span className="badge bg-amber-50 text-amber-600 shrink-0">
                       <User className="w-3 h-3 mr-0.5" />
                       {tx.responsible_id === partner?.user_id ? 'Parceiro(a)' : 'Outro'}
                     </span>
                   )}
                   {tx.responsible_id === null && tx.type !== 'transfer' && tx.secondary_payer_id && (
-                    <span className="badge bg-primary-50 text-primary-600 shrink-0">
+                    <span className="badge bg-emerald-50 text-emerald-600 shrink-0">
                       <Heart className="w-3 h-3 mr-0.5" /> Casal
                     </span>
                   )}
@@ -616,21 +616,21 @@ export default function TransactionsPage() {
                 </p>
               </div>
               <div className="text-right shrink-0">
-                <p className={`font-semibold ${tx.type === 'income' ? 'text-success-600' : tx.type === 'transfer' ? 'text-neutral-600' : 'text-danger-600'}`}>
+                <p className={`font-semibold ${tx.type === 'income' ? 'text-emerald-600' : tx.type === 'transfer' ? 'text-slate-600' : 'text-rose-600'}`}>
                   {tx.type === 'income' ? '+' : tx.type === 'expense' ? '−' : ''}{centsToBRL(tx.amount_cents)}
                 </p>
                 {tx.status === 'pending' && (
                   <button onClick={() => handleMarkPaid(tx.id, tx.version)}
-                    className="text-xs text-primary-600 hover:text-primary-800 font-medium mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    className="text-xs text-emerald-600 hover:text-emerald-800 font-medium mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     Marcar como pago
                   </button>
                 )}
               </div>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => openEdit(tx)} className="p-1.5 rounded-lg text-neutral-300 hover:text-primary-600 hover:bg-primary-50 transition-colors">
+                <button onClick={() => openEdit(tx)} className="p-1.5 rounded-lg text-slate-300 hover:text-emerald-600 hover:bg-emerald-50 transition-colors">
                   <Edit3 className="w-4 h-4" />
                 </button>
-                <button onClick={() => handleDelete(tx.id)} className="p-1.5 rounded-lg text-neutral-300 hover:text-danger-600 hover:bg-danger-50 transition-colors">
+                <button onClick={() => handleDelete(tx.id)} className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -641,39 +641,43 @@ export default function TransactionsPage() {
 
       {/* New/Edit modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 animate-fade-in" onClick={() => setShowModal(false)}>
-          <div className="card p-6 w-full max-w-md animate-scale-in max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-neutral-900">{editingTx ? 'Editar lançamento' : 'Novo lançamento'}</h2>
-              <button onClick={() => setShowModal(false)} className="text-neutral-400 hover:text-neutral-600 transition-colors"><X className="w-5 h-5" /></button>
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal-panel max-w-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h2 className="modal-title">{editingTx ? 'Editar lançamento' : 'Novo lançamento'}</h2>
+                <p className="modal-subtitle">Registre uma receita, despesa ou transferência</p>
+              </div>
+              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X className="w-5 h-5" /></button>
             </div>
 
             {conflict && (
-              <div className="mb-4 p-4 rounded-xl bg-warning-50 border border-warning-200">
+              <div className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-warning-600 shrink-0 mt-0.5" />
+                  <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-warning-800 mb-1">Conflito de edição</p>
-                    <p className="text-xs text-warning-700">{conflict.message}</p>
+                    <p className="text-sm font-medium text-amber-800 mb-1">Conflito de edição</p>
+                    <p className="text-xs text-amber-700">{conflict.message}</p>
                   </div>
                 </div>
-                <button onClick={handleConflictReload} className="mt-3 flex items-center gap-1.5 text-sm font-medium text-warning-700 hover:text-warning-900">
+                <button onClick={handleConflictReload} className="mt-3 flex items-center gap-1.5 text-sm font-medium text-amber-700 hover:text-amber-900">
                   <RefreshCw className="w-3.5 h-3.5" /> Recarregar lista
                 </button>
               </div>
             )}
 
-            {error && !conflict && <div className="mb-4 p-3 rounded-xl bg-danger-50 border border-danger-200 text-danger-700 text-sm">{error}</div>}
+            {error && !conflict && <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm">{error}</div>}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit}>
+              <div className="modal-body">
               {/* Type selector */}
               <div className="flex gap-2">
                 {(['expense', 'income', 'transfer'] as TransactionType[]).map(t => (
                   <button key={t} type="button" onClick={() => setFormType(t)}
                     className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                       formType === t
-                        ? t === 'income' ? 'bg-success-100 text-success-700' : t === 'transfer' ? 'bg-primary-100 text-primary-700' : 'bg-danger-100 text-danger-700'
-                        : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'
+                        ? t === 'income' ? 'bg-emerald-100 text-emerald-700' : t === 'transfer' ? 'bg-violet-100 text-violet-700' : 'bg-rose-100 text-rose-700'
+                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                     }`}>
                     {TRANSACTION_TYPE_LABELS[t]}
                   </button>
@@ -691,14 +695,14 @@ export default function TransactionsPage() {
 
               {/* Transfer-specific fields */}
               {formType === 'transfer' && (
-                <div className="space-y-3 p-3 rounded-xl bg-primary-50/50 border border-primary-100">
-                  <div className="flex gap-2">
+                <div className="section-block">
+                  <div className="segmented">
                     <button type="button" onClick={() => setTransferMode('account')}
-                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${transferMode === 'account' ? 'bg-primary-600 text-white' : 'bg-white text-primary-600 border border-primary-200'}`}>
+                      className={`segmented-btn ${transferMode === 'account' ? 'segmented-btn-active' : 'segmented-btn-inactive'}`}>
                       Entre contas
                     </button>
                     <button type="button" onClick={() => setTransferMode('person')}
-                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${transferMode === 'person' ? 'bg-primary-600 text-white' : 'bg-white text-primary-600 border border-primary-200'}`}>
+                      className={`segmented-btn ${transferMode === 'person' ? 'segmented-btn-active' : 'segmented-btn-inactive'}`}>
                       Para pessoa
                     </button>
                   </div>
@@ -749,7 +753,7 @@ export default function TransactionsPage() {
                             : 'Selecione'}
                         </span>
                         {categories.filter(c => formType === 'income' ? c.kind === 'income' : c.kind === 'expense').length === 0 && (
-                          <span className="text-xs text-warning-600">Adicionar</span>
+                          <span className="text-xs text-amber-600">Adicionar</span>
                         )}
                       </button>
                     </div>
@@ -766,7 +770,7 @@ export default function TransactionsPage() {
                             : 'Selecione'}
                         </span>
                         {paymentMethods.filter(pm => formType === 'income' ? pm.kind === 'income' : pm.kind === 'expense').length === 0 && (
-                          <span className="text-xs text-warning-600">Adicionar</span>
+                          <span className="text-xs text-amber-600">Adicionar</span>
                         )}
                       </button>
                     </div>
@@ -777,7 +781,7 @@ export default function TransactionsPage() {
                     <div className="flex items-center justify-between mb-1">
                       <label className="label mb-0">Estabelecimento</label>
                       <label className="flex items-center gap-1.5 cursor-pointer">
-                        <input type="checkbox" className="w-4 h-4 rounded border-neutral-300 text-primary-600"
+                        <input type="checkbox" className="w-4 h-4 rounded border-neutral-300 text-emerald-600"
                           checked={establishmentNotInformed}
                           onChange={(e) => {
                             setEstablishmentNotInformed(e.target.checked);
@@ -800,23 +804,17 @@ export default function TransactionsPage() {
                     </div>
                   )}
 
-                  {/* Responsibility selector (shared spaces only) */}
-                  {members.length > 0 && (
-                    <div className="space-y-3 p-3 rounded-xl bg-neutral-50 border border-neutral-100">
+                  {/* Responsibility selector */}
+                  {(
+                    <div className="section-block">
                       <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-neutral-500" />
-                        <label className="text-sm font-medium text-neutral-700">Responsabilidade</label>
+                        <User className="w-4 h-4 text-slate-500" />
+                        <label className="text-sm font-medium text-slate-700">Responsabilidade</label>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="segmented">
                         {(['mine', 'partner', 'shared'] as ResponsibilityType[]).map(r => (
                           <button key={r} type="button" onClick={() => { setResponsibility(r); setPayerType('me'); setMyPayAmount(''); setPartnerPayAmount(''); }}
-                            className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${
-                              responsibility === r
-                                ? r === 'mine' ? 'bg-primary-600 text-white'
-                                  : r === 'partner' ? 'bg-accent-500 text-white'
-                                  : 'bg-primary-600 text-white'
-                                : 'bg-white text-neutral-500 border border-neutral-200 hover:bg-neutral-100'
-                            }`}>
+                            className={`segmented-btn ${responsibility === r ? 'segmented-btn-active' : 'segmented-btn-inactive'}`}>
                             {RESPONSIBILITY_LABELS[r]}
                           </button>
                         ))}
@@ -824,13 +822,11 @@ export default function TransactionsPage() {
 
                       {/* Payer distribution */}
                       <div className="pt-1">
-                        <label className="text-xs text-neutral-500 block mb-1.5">Quem pagou</label>
-                        <div className="flex gap-2">
+                        <label className="text-xs text-slate-500 block mb-1.5">Quem pagou</label>
+                        <div className="segmented">
                           {(['me', 'partner', 'both'] as PayerType[]).map(p => (
                             <button key={p} type="button" onClick={() => { setPayerType(p); setMyPayAmount(''); setPartnerPayAmount(''); }}
-                              className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${
-                                payerType === p ? 'bg-primary-600 text-white' : 'bg-white text-neutral-500 border border-neutral-200 hover:bg-neutral-100'
-                              }`}>
+                              className={`segmented-btn ${payerType === p ? 'segmented-btn-active' : 'segmented-btn-inactive'}`}>
                               {PAYER_LABELS[p]}
                             </button>
                           ))}
@@ -858,7 +854,7 @@ export default function TransactionsPage() {
                       )}
 
                       {responsibility === 'shared' && payerType === 'both' && formAmount && (
-                        <p className="text-xs text-primary-600">
+                        <p className="text-xs text-emerald-600">
                           Um acerto será criado automaticamente em "Acertos" para registrar a dívida entre vocês.
                         </p>
                       )}
@@ -867,10 +863,10 @@ export default function TransactionsPage() {
 
                   {/* Split section (only for expenses in shared spaces) */}
                   {formType === 'expense' && members.length > 0 && (
-                    <div className="space-y-3 p-3 rounded-xl bg-neutral-50 border border-neutral-100">
+                    <div className="section-block">
                       <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-neutral-500" />
-                        <label className="text-sm font-medium text-neutral-700">Dividir com</label>
+                        <Users className="w-4 h-4 text-slate-500" />
+                        <label className="text-sm font-medium text-slate-700">Dividir com</label>
                       </div>
                       <select className="input py-2 text-sm" value={splitType} onChange={(e) => { setSplitType(e.target.value as SplitType); setSplitMembers({}); }}>
                         {Object.entries(SPLIT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -880,7 +876,7 @@ export default function TransactionsPage() {
                           {members.map(m => (
                             <div key={m.user_id} className="flex items-center gap-2">
                               <label className="flex items-center gap-2 flex-1 cursor-pointer">
-                                <input type="checkbox" className="w-4 h-4 rounded border-neutral-300 text-primary-600"
+                                <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-emerald-600"
                                   checked={!!splitMembers[m.user_id] || splitMembers[m.user_id] === ''}
                                   onChange={(e) => {
                                     if (e.target.checked) {
@@ -912,12 +908,12 @@ export default function TransactionsPage() {
 
               {/* Card & Invoice selection with inline creation */}
               {formType !== 'transfer' && isCardPayment && (
-                <div className="space-y-3 p-3 rounded-xl bg-blue-50/50 border border-blue-100">
+                <div className="section-block">
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="label mb-0">Cartão</label>
                       <button type="button" onClick={() => setShowCardModal(true)}
-                        className="text-xs text-primary-600 hover:text-primary-800 font-medium flex items-center gap-1">
+                        className="text-xs text-emerald-600 hover:text-emerald-800 font-medium flex items-center gap-1">
                         <Plus className="w-3.5 h-3.5" /> Novo cartão
                       </button>
                     </div>
@@ -931,7 +927,7 @@ export default function TransactionsPage() {
                       <div className="flex items-center justify-between mb-1">
                         <label className="label mb-0">Fatura</label>
                         <button type="button" onClick={() => setShowInvoiceModal(true)}
-                          className="text-xs text-primary-600 hover:text-primary-800 font-medium flex items-center gap-1">
+                          className="text-xs text-emerald-600 hover:text-emerald-800 font-medium flex items-center gap-1">
                           <Plus className="w-3.5 h-3.5" /> Nova fatura
                         </button>
                       </div>
@@ -948,7 +944,7 @@ export default function TransactionsPage() {
                         )}
                       </select>
                       {cardInvoices.length === 0 && (
-                        <p className="text-xs text-warning-600 mt-1">Crie uma fatura para este cartão clicando em "Nova fatura" acima.</p>
+                        <p className="text-xs text-amber-600 mt-1">Crie uma fatura para este cartão clicando em "Nova fatura" acima.</p>
                       )}
                     </div>
                   )}
@@ -970,8 +966,8 @@ export default function TransactionsPage() {
               {formType !== 'transfer' && !isCardPayment && (
                 <div className="flex items-center gap-2 pt-1">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" className="w-4 h-4 rounded border-neutral-300 text-primary-600" checked={formPaid} onChange={(e) => setFormPaid(e.target.checked)} />
-                    <span className="text-sm text-neutral-700">Já foi pago/recebido</span>
+                    <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-emerald-600" checked={formPaid} onChange={(e) => setFormPaid(e.target.checked)} />
+                    <span className="text-sm text-slate-700">Já foi pago/recebido</span>
                   </label>
                 </div>
               )}
@@ -985,10 +981,14 @@ export default function TransactionsPage() {
                 <label className="label">Observações</label>
                 <textarea className="input" rows={2} placeholder="Opcional" value={formNotes} onChange={(e) => setFormNotes(e.target.value)} />
               </div>
-              {editingTx && <p className="text-xs text-neutral-400 text-center">Editando versão #{editingTx.version}</p>}
-              <button type="submit" disabled={saving || !!conflict} className="btn-primary w-full">
-                {saving ? 'Salvando...' : editingTx ? 'Salvar alterações' : 'Criar lançamento'}
-              </button>
+              {editingTx && <p className="text-xs text-slate-400 text-center">Editando versão #{editingTx.version}</p>}
+              </div>
+              <div className="modal-footer">
+                <button type="button" onClick={() => setShowModal(false)} className="btn-ghost">Cancelar</button>
+                <button type="submit" disabled={saving || !!conflict} className="btn-primary">
+                  {saving ? 'Salvando...' : editingTx ? 'Salvar alterações' : 'Criar lançamento'}
+                </button>
+              </div>
             </form>
           </div>
         </div>

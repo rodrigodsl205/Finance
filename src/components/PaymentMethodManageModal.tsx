@@ -129,7 +129,7 @@ export default function PaymentMethodManageModal({ open, onClose, spaceId, onSav
             {icon} {label}
           </h3>
           {!selectMode && (
-            <button onClick={() => openNew(newKind)} className="text-primary-600 hover:text-primary-800 text-xs font-medium flex items-center gap-1">
+            <button onClick={() => openNew(newKind)} className="text-emerald-600 hover:text-emerald-800 text-xs font-medium flex items-center gap-1">
               <Plus className="w-3.5 h-3.5" /> Adicionar
             </button>
           )}
@@ -139,26 +139,26 @@ export default function PaymentMethodManageModal({ open, onClose, spaceId, onSav
             <div
               key={pm.id}
               className={`flex items-center justify-between py-2 px-3 rounded-xl group transition-colors ${
-                selectMode ? 'hover:bg-primary-50 cursor-pointer' : 'hover:bg-neutral-50'
-              } ${selectedId === pm.id ? 'bg-primary-50 ring-1 ring-primary-200' : ''}`}
+                selectMode ? 'hover:bg-emerald-50 cursor-pointer' : 'hover:bg-neutral-50'
+              } ${selectedId === pm.id ? 'bg-emerald-50 ring-1 ring-emerald-200' : ''}`}
               onClick={() => selectMode && handleSelect(pm)}
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                {selectMode && selectedId === pm.id && <Check className="w-4 h-4 text-primary-600 shrink-0" />}
+                {selectMode && selectedId === pm.id && <Check className="w-4 h-4 text-emerald-600 shrink-0" />}
                 {pm.name.startsWith('Cartão ') ? (
                   <CreditCard className="w-4 h-4 text-neutral-500 shrink-0" />
                 ) : (
                   <Wallet className="w-4 h-4 text-neutral-500 shrink-0" />
                 )}
-                {pm.is_default && <Star className="w-3.5 h-3.5 text-accent-500 fill-accent-500 shrink-0" />}
+                {pm.is_default && <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />}
                 <span className="text-sm font-medium text-neutral-700 truncate">{pm.name}</span>
               </div>
               {!selectMode && (
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={(e) => { e.stopPropagation(); openEdit(pm); }} className="p-1 rounded text-neutral-400 hover:text-primary-600">
+                  <button onClick={(e) => { e.stopPropagation(); openEdit(pm); }} className="p-1 rounded text-neutral-400 hover:text-emerald-600">
                     <Edit3 className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(pm.id); }} className="p-1 rounded text-neutral-400 hover:text-danger-600">
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(pm.id); }} className="p-1 rounded text-neutral-400 hover:text-rose-600">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -172,21 +172,21 @@ export default function PaymentMethodManageModal({ open, onClose, spaceId, onSav
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/30 animate-fade-in" onClick={onClose}>
-      <div className="card p-6 w-full max-w-lg animate-scale-in max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4 sticky top-0 bg-white pb-2 z-10">
-          <h2 className="text-lg font-semibold text-neutral-900">
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header sticky top-0 bg-white pb-2 z-10">
+          <h2 className="modal-title">
             {selectMode ? 'Selecionar forma de pagamento' : 'Gerenciar formas de pagamento'}
           </h2>
           <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 transition-colors"><X className="w-5 h-5" /></button>
         </div>
 
-        {error && <div className="mb-4 p-3 rounded-xl bg-danger-50 border border-danger-200 text-danger-700 text-sm">{error}</div>}
+        {error && <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm">{error}</div>}
 
         {loading ? (
           <div className="py-8 text-center text-neutral-400">Carregando...</div>
         ) : showForm ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="modal-body">
             <div>
               <label className="label">Nome</label>
               <input className="input" placeholder="Ex: PIX" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
@@ -201,7 +201,7 @@ export default function PaymentMethodManageModal({ open, onClose, spaceId, onSav
               </div>
             )}
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" className="w-4 h-4 rounded border-neutral-300 text-primary-600" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} />
+              <input type="checkbox" className="w-4 h-4 rounded border-neutral-300 text-emerald-600" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} />
               <span className="text-sm text-neutral-700">Definir como padrão</span>
             </label>
             <div className="flex gap-2">
@@ -214,7 +214,7 @@ export default function PaymentMethodManageModal({ open, onClose, spaceId, onSav
             </div>
           </form>
         ) : (
-          <div className="space-y-4">
+          <div className="modal-body">
             {methods.length === 0 && (
               <p className="text-sm text-neutral-500 text-center py-4">
                 Nenhuma forma de pagamento cadastrada. Crie uma para usar nos lançamentos.
@@ -222,12 +222,12 @@ export default function PaymentMethodManageModal({ open, onClose, spaceId, onSav
             )}
             {showExpense && renderMethodList(
               expenseMethods, 'Despesas',
-              <ArrowDownCircle className="w-4 h-4 text-danger-500" />,
+              <ArrowDownCircle className="w-4 h-4 text-rose-500" />,
               'expense'
             )}
             {showIncome && renderMethodList(
               incomeMethods, 'Receitas',
-              <ArrowUpCircle className="w-4 h-4 text-success-500" />,
+              <ArrowUpCircle className="w-4 h-4 text-emerald-500" />,
               'income'
             )}
             {selectMode && methods.length > 0 && (

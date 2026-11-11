@@ -99,21 +99,21 @@ export default function BrandManageModal({ open, onClose, spaceId, selectedBrand
   const allBrands = [...DEFAULT_BRANDS, ...customBrands];
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/30 animate-fade-in" onClick={onClose}>
-      <div className="card p-6 w-full max-w-lg animate-scale-in max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4 sticky top-0 bg-white pb-2 z-10">
-          <h2 className="text-lg font-semibold text-neutral-900">
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-panel max-w-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header sticky top-0 bg-white pb-2 z-10">
+          <h2 className="modal-title">
             {selectMode ? 'Selecionar bandeira' : 'Gerenciar bandeiras'}
           </h2>
-          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 transition-colors"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X className="w-5 h-5" /></button>
         </div>
 
-        {error && <div className="mb-4 p-3 rounded-xl bg-danger-50 border border-danger-200 text-danger-700 text-sm">{error}</div>}
+        {error && <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm">{error}</div>}
 
         {loading ? (
-          <div className="py-8 text-center text-neutral-400">Carregando...</div>
+          <div className="py-8 text-center text-slate-400">Carregando...</div>
         ) : showForm ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="modal-body">
             <div>
               <label className="label">Nome da bandeira</label>
               <input className="input" placeholder="Ex: Visa Nano" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
@@ -128,22 +128,22 @@ export default function BrandManageModal({ open, onClose, spaceId, selectedBrand
             </div>
           </form>
         ) : (
-          <div className="space-y-4">
+          <div className="modal-body">
             <div>
-              <h3 className="text-sm font-semibold text-neutral-700 mb-2">Bandeiras padrão</h3>
+              <h3 className="text-sm font-semibold text-slate-700 mb-2">Bandeiras padrão</h3>
               <div className="space-y-1">
                 {DEFAULT_BRANDS.map(brand => (
                   <div
                     key={brand}
                     className={`flex items-center justify-between py-2 px-3 rounded-xl group transition-colors ${
-                      selectMode ? 'hover:bg-primary-50 cursor-pointer' : 'hover:bg-neutral-50'
-                    } ${selectedBrand === brand ? 'bg-primary-50 ring-1 ring-primary-200' : ''}`}
+                      selectMode ? 'hover:bg-emerald-50 cursor-pointer' : 'hover:bg-slate-50'
+                    } ${selectedBrand === brand ? 'bg-emerald-50 ring-1 ring-emerald-200' : ''}`}
                     onClick={() => selectMode && handleSelect(brand)}
                   >
                     <div className="flex items-center gap-2 flex-1">
-                      {selectMode && selectedBrand === brand && <Check className="w-4 h-4 text-primary-600 shrink-0" />}
-                      <CreditCard className="w-4 h-4 text-neutral-500 shrink-0" />
-                      <span className="text-sm text-neutral-700">{brand}</span>
+                      {selectMode && selectedBrand === brand && <Check className="w-4 h-4 text-emerald-600 shrink-0" />}
+                      <CreditCard className="w-4 h-4 text-slate-500 shrink-0" />
+                      <span className="text-sm text-slate-700">{brand}</span>
                     </div>
                   </div>
                 ))}
@@ -152,26 +152,26 @@ export default function BrandManageModal({ open, onClose, spaceId, selectedBrand
 
             {customBrands.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-neutral-700 mb-2">Bandeiras personalizadas</h3>
+                <h3 className="text-sm font-semibold text-slate-700 mb-2">Bandeiras personalizadas</h3>
                 <div className="space-y-1">
                   {customBrands.map(brand => (
                     <div
                       key={brand}
                       className={`flex items-center justify-between py-2 px-3 rounded-xl group transition-colors ${
-                        selectMode ? 'hover:bg-primary-50 cursor-pointer' : 'hover:bg-neutral-50'
-                      } ${selectedBrand === brand ? 'bg-primary-50 ring-1 ring-primary-200' : ''}`}
+                        selectMode ? 'hover:bg-emerald-50 cursor-pointer' : 'hover:bg-slate-50'
+                      } ${selectedBrand === brand ? 'bg-emerald-50 ring-1 ring-emerald-200' : ''}`}
                       onClick={() => selectMode && handleSelect(brand)}
                     >
                       <div className="flex items-center gap-2 flex-1">
-                        {selectMode && selectedBrand === brand && <Check className="w-4 h-4 text-primary-600 shrink-0" />}
-                        <CreditCard className="w-4 h-4 text-neutral-500 shrink-0" />
-                        <span className="text-sm text-neutral-700">{brand}</span>
+                        {selectMode && selectedBrand === brand && <Check className="w-4 h-4 text-emerald-600 shrink-0" />}
+                        <CreditCard className="w-4 h-4 text-slate-500 shrink-0" />
+                        <span className="text-sm text-slate-700">{brand}</span>
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={(e) => { e.stopPropagation(); setEditingBrand(brand); setName(brand); setShowForm(true); }} className="p-1 rounded text-neutral-400 hover:text-primary-600">
+                        <button onClick={(e) => { e.stopPropagation(); setEditingBrand(brand); setName(brand); setShowForm(true); }} className="p-1 rounded text-slate-400 hover:text-emerald-600">
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(brand); }} className="p-1 rounded text-neutral-400 hover:text-danger-600">
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(brand); }} className="p-1 rounded text-slate-400 hover:text-rose-600">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>

@@ -157,13 +157,13 @@ export default function CategoryManageModal({ open, onClose, spaceId, onSaved, f
       <div key={node.id}>
         <div
           className={`flex items-center justify-between py-2 px-3 rounded-xl group transition-colors ${
-            selectMode ? 'hover:bg-primary-50 cursor-pointer' : 'hover:bg-neutral-50'
-          } ${selectedId === node.id ? 'bg-primary-50 ring-1 ring-primary-200' : ''}`}
+            selectMode ? 'hover:bg-emerald-50 cursor-pointer' : 'hover:bg-neutral-50'
+          } ${selectedId === node.id ? 'bg-emerald-50 ring-1 ring-emerald-200' : ''}`}
           style={{ paddingLeft: `${12 + indent}px` }}
           onClick={() => selectMode && handleSelect(node)}
         >
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            {selectMode && selectedId === node.id && <Check className="w-4 h-4 text-primary-600 shrink-0" />}
+            {selectMode && selectedId === node.id && <Check className="w-4 h-4 text-emerald-600 shrink-0" />}
             {hasChildren ? (
               <button
                 onClick={(e) => { e.stopPropagation(); toggleExpand(node.id); }}
@@ -176,21 +176,19 @@ export default function CategoryManageModal({ open, onClose, spaceId, onSaved, f
             )}
             <span className="text-sm text-neutral-700 truncate">{node.name}</span>
           </div>
-          {!selectMode && (
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              {level < 2 && (
-                <button onClick={(e) => { e.stopPropagation(); openNew(node.kind, node); }} className="p-1 rounded text-neutral-400 hover:text-primary-600" title="Adicionar subcategoria">
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-              )}
-              <button onClick={(e) => { e.stopPropagation(); openEdit(node); }} className="p-1 rounded text-neutral-400 hover:text-primary-600">
-                <Edit3 className="w-3.5 h-3.5" />
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {level < 2 && (
+              <button onClick={(e) => { e.stopPropagation(); openNew(node.kind, node); }} className="p-1 rounded text-neutral-400 hover:text-emerald-600" title="Adicionar subcategoria">
+                <Plus className="w-3.5 h-3.5" />
               </button>
-              <button onClick={(e) => { e.stopPropagation(); handleDelete(node.id); }} className="p-1 rounded text-neutral-400 hover:text-danger-600">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
+            )}
+            <button onClick={(e) => { e.stopPropagation(); openEdit(node); }} className="p-1 rounded text-neutral-400 hover:text-emerald-600">
+              <Edit3 className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); handleDelete(node.id); }} className="p-1 rounded text-neutral-400 hover:text-rose-600">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
         {hasChildren && isExpanded && node.children.map(child => renderNode(child, level + 1))}
       </div>
@@ -206,7 +204,7 @@ export default function CategoryManageModal({ open, onClose, spaceId, onSaved, f
             {icon} {label}
           </h3>
           {!selectMode && (
-            <button onClick={() => openNew(newKind)} className="text-primary-600 hover:text-primary-800 text-xs font-medium flex items-center gap-1">
+            <button onClick={() => openNew(newKind)} className="text-emerald-600 hover:text-emerald-800 text-xs font-medium flex items-center gap-1">
               <Plus className="w-3.5 h-3.5" /> Adicionar
             </button>
           )}
@@ -220,21 +218,21 @@ export default function CategoryManageModal({ open, onClose, spaceId, onSaved, f
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/30 animate-fade-in" onClick={onClose}>
-      <div className="card p-6 w-full max-w-lg animate-scale-in max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4 sticky top-0 bg-white pb-2 z-10">
-          <h2 className="text-lg font-semibold text-neutral-900">
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="modal-title">
             {selectMode ? 'Selecionar categoria' : 'Gerenciar categorias'}
           </h2>
           <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 transition-colors"><X className="w-5 h-5" /></button>
         </div>
 
-        {error && <div className="mb-4 p-3 rounded-xl bg-danger-50 border border-danger-200 text-danger-700 text-sm">{error}</div>}
+        {error && <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm">{error}</div>}
 
         {loading ? (
           <div className="py-8 text-center text-neutral-400">Carregando...</div>
         ) : showForm ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="modal-body">
             {parentId && (
               <div>
                 <label className="label">Categoria pai</label>
@@ -266,7 +264,7 @@ export default function CategoryManageModal({ open, onClose, spaceId, onSaved, f
             </div>
           </form>
         ) : (
-          <div className="space-y-4">
+          <div className="modal-body">
             {categories.length === 0 && (
               <p className="text-sm text-neutral-500 text-center py-4">
                 Nenhuma categoria cadastrada. Crie uma para usar nos lançamentos.
@@ -274,36 +272,18 @@ export default function CategoryManageModal({ open, onClose, spaceId, onSaved, f
             )}
             {showExpense && renderCatList(
               expenseRoots, 'Despesas',
-              <ArrowDownCircle className="w-4 h-4 text-danger-500" />,
+              <ArrowDownCircle className="w-4 h-4 text-rose-500" />,
               'expense'
             )}
             {showIncome && renderCatList(
               incomeRoots, 'Receitas',
-              <ArrowUpCircle className="w-4 h-4 text-success-500" />,
+              <ArrowUpCircle className="w-4 h-4 text-emerald-500" />,
               'income'
             )}
             {selectMode && (
-              <div className="space-y-3">
-                <div>
-                  <label className="label">Criar subcategoria sob (opcional)</label>
-                  <select className="input py-2 text-sm" value={parentId ?? ''} onChange={(e) => setParentId(e.target.value || null)}>
-                    <option value="">Categoria raiz</option>
-                    {categories
-                      .filter(c => !filterKind || c.kind === filterKind)
-                      .filter(c => {
-                        if (!parentId) return true;
-                        return c.id !== parentId;
-                      })
-                      .map(c => (
-                        <option key={c.id} value={c.id}>{categoryPath(categories, c.id)}</option>
-                      ))
-                    }
-                  </select>
-                </div>
-                <button onClick={() => openNew(filterKind ?? 'expense', parentId ? categories.find(c => c.id === parentId) ?? null : null)} className="btn-secondary w-full text-sm">
-                  <Plus className="w-4 h-4" /> {parentId ? 'Nova subcategoria' : 'Nova categoria'}
-                </button>
-              </div>
+              <button onClick={() => openNew(filterKind ?? 'expense')} className="btn-secondary w-full text-sm">
+                <Plus className="w-4 h-4" /> Nova categoria
+              </button>
             )}
             {!selectMode && (
               <button onClick={() => openNew('expense')} className="btn-secondary w-full text-sm">

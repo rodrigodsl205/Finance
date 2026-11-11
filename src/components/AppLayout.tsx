@@ -106,19 +106,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-100">
+    <div className="min-h-screen bg-slate-50">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex fixed inset-y-0 left-0 w-64 flex-col bg-white border-r border-neutral-200 z-30">
-        <div className="flex items-center gap-3 px-6 h-16 border-b border-neutral-200">
-          <div className="w-9 h-9 rounded-xl bg-primary-700 flex items-center justify-center">
+      <aside className="hidden lg:flex fixed inset-y-0 left-0 w-64 flex-col bg-white border-r border-slate-200 z-30">
+        <div className="flex items-center gap-3 px-6 h-16 border-b border-slate-200">
+          <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center shadow-sm">
             <Wallet className="w-5 h-5 text-white" strokeWidth={2} />
           </div>
-          <span className="text-lg font-bold text-neutral-900">DualCash</span>
+          <span className="text-lg font-bold text-slate-900">DualCash</span>
         </div>
 
         {/* Space selector */}
-        <div className="px-4 py-3 border-b border-neutral-200">
-          <label className="text-xs text-neutral-500 font-medium mb-1.5 block">Espaço ativo</label>
+        <div className="px-4 py-3 border-b border-slate-200">
+          <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5 block">Espaço ativo</label>
           <SpaceSelector
             loading={loading}
             error={error}
@@ -137,8 +137,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                   isActive
-                    ? 'bg-primary-50 text-primary-700'
-                    : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`
               }
             >
@@ -148,16 +148,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
-        <div className="border-t border-neutral-200 p-4">
+        <div className="border-t border-slate-200 p-4">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-semibold text-sm">
+            <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-semibold text-sm">
               {profile?.display_name?.charAt(0).toUpperCase() ?? '?'}
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-neutral-900 truncate">{profile?.display_name ?? 'Usuário'}</p>
+              <p className="text-sm font-medium text-slate-900 truncate">{profile?.display_name ?? 'Usuário'}</p>
             </div>
           </div>
-          <button onClick={handleSignOut} className="btn-ghost w-full text-danger-600 hover:bg-danger-50">
+          <button onClick={handleSignOut} className="btn-ghost w-full text-rose-600 hover:bg-rose-50">
             <LogOut className="w-4 h-4" />
             Sair
           </button>
@@ -165,12 +165,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Mobile header */}
-      <header className="lg:hidden sticky top-0 z-30 bg-white border-b border-neutral-200 px-4 h-14 flex items-center justify-between">
+      <header className="lg:hidden sticky top-0 z-30 bg-white border-b border-slate-200 px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary-700 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center shadow-sm">
             <Wallet className="w-4 h-4 text-white" strokeWidth={2} />
           </div>
-          <span className="font-bold text-neutral-900">DualCash</span>
+          <span className="font-bold text-slate-900">DualCash</span>
         </div>
         <SpaceSelector
           loading={loading}
@@ -188,7 +188,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t border-neutral-200 z-30 pb-[env(safe-area-inset-bottom)]">
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 z-30 pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center justify-around px-2 py-1">
           {navItems.slice(0, 5).map((item) => (
             <NavLink
@@ -197,7 +197,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               end={item.end}
               className={({ isActive }) =>
                 `flex flex-col items-center gap-0.5 px-2 py-2 rounded-lg text-[10px] font-medium transition-colors ${
-                  isActive ? 'text-primary-700' : 'text-neutral-400'
+                  isActive ? 'text-emerald-600' : 'text-slate-400'
                 }`
               }
             >

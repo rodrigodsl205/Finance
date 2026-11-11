@@ -140,43 +140,47 @@ export default function CardModal({ open, onClose, spaceId, userId, editingCard,
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/30 animate-fade-in" onClick={onClose}>
-      <div className="card p-6 w-full max-w-md animate-scale-in max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-neutral-900">
-            {selectMode ? 'Selecionar cartão' : editing ? 'Editar cartão' : 'Novo cartão'}
-          </h2>
-          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 transition-colors"><X className="w-5 h-5" /></button>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-panel max-w-md" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <h2 className="modal-title">
+              {selectMode ? 'Selecionar cartão' : editing ? 'Editar cartão' : 'Novo cartão'}
+            </h2>
+            <p className="modal-subtitle">Cadastre os dados do cartão de crédito</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X className="w-5 h-5" /></button>
         </div>
 
+        <div className="modal-body">
         {selectMode && cards.length > 0 && (
-          <div className="space-y-1 mb-4">
+          <div className="space-y-1">
             {cards.map(c => (
               <div
                 key={c.id}
-                className={`flex items-center gap-3 py-2.5 px-3 rounded-xl cursor-pointer transition-colors hover:bg-primary-50 ${editingCard?.id === c.id ? 'bg-primary-50 ring-1 ring-primary-200' : ''}`}
+                className={`flex items-center gap-3 py-2.5 px-3 rounded-xl cursor-pointer transition-colors hover:bg-emerald-50 ${editingCard?.id === c.id ? 'bg-emerald-50 ring-1 ring-emerald-200' : ''}`}
                 onClick={() => { if (onSelect) { onSelect(c); onClose(); } }}
               >
-                <div className="w-9 h-9 rounded-lg bg-neutral-100 flex items-center justify-center shrink-0">
-                  <CreditCard className="w-5 h-5 text-neutral-500" />
+                <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                  <CreditCard className="w-5 h-5 text-slate-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-neutral-700 truncate">{c.name}</p>
-                  {c.brand && <p className="text-xs text-neutral-400">{c.brand}</p>}
+                  <p className="text-sm font-medium text-slate-700 truncate">{c.name}</p>
+                  {c.brand && <p className="text-xs text-slate-400">{c.brand}</p>}
                 </div>
-                {editingCard?.id === c.id && <Check className="w-4 h-4 text-primary-600 shrink-0" />}
+                {editingCard?.id === c.id && <Check className="w-4 h-4 text-emerald-600 shrink-0" />}
               </div>
             ))}
-            <div className="pt-2 border-t border-neutral-100 mt-2">
-              <p className="text-xs text-neutral-500 mb-2 px-3">Ou cadastre um novo cartão:</p>
+            <div className="pt-2 border-t border-slate-100 mt-2">
+              <p className="text-xs text-slate-500 mb-2 px-3">Ou cadastre um novo cartão:</p>
             </div>
           </div>
         )}
 
-        {error && <div className="mb-4 p-3 rounded-xl bg-danger-50 border border-danger-200 text-danger-700 text-sm">{error}</div>}
-        {successMsg && <div className="mb-4 p-3 rounded-xl bg-success-50 border border-success-200 text-success-700 text-sm">{successMsg}</div>}
+        {error && <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm">{error}</div>}
+        {successMsg && <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">{successMsg}</div>}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form id="card-form" onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="label">Instituição Financeira</label>
             <input className="input" placeholder="Ex: Banco do Brasil" value={institution} onChange={(e) => setInstitution(e.target.value)} required autoFocus />
@@ -193,11 +197,11 @@ export default function CardModal({ open, onClose, spaceId, userId, editingCard,
                 onClick={() => setShowBrandModal(true)}
                 className="input text-left flex items-center justify-between"
               >
-                <span className={brand ? 'text-neutral-800' : 'text-neutral-400'}>
+                <span className={brand ? 'text-slate-800' : 'text-slate-400'}>
                   {brand || 'Selecione'}
                 </span>
                 {allBrands.length === 0 && (
-                  <span className="text-xs text-warning-600">Adicionar</span>
+                  <span className="text-xs text-amber-600">Adicionar</span>
                 )}
               </button>
             </div>
@@ -238,10 +242,15 @@ export default function CardModal({ open, onClose, spaceId, userId, editingCard,
               />
             </div>
           </div>
-          <button type="submit" disabled={saving} className="btn-primary w-full">
+        </form>
+        </div>
+
+        <div className="modal-footer">
+          <button type="button" onClick={onClose} className="btn-ghost">Cancelar</button>
+          <button type="submit" form="card-form" disabled={saving} className="btn-primary">
             {saving ? 'Salvando...' : editing ? 'Salvar alterações' : 'Criar cartão'}
           </button>
-        </form>
+        </div>
       </div>
 
       <BrandManageModal

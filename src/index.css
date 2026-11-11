@@ -11,53 +11,106 @@
   }
 
   body {
-    @apply bg-neutral-100 text-neutral-800 font-sans antialiased;
+    @apply bg-slate-50 text-slate-700 font-sans antialiased;
     line-height: 1.5;
   }
 
   h1, h2, h3, h4, h5, h6 {
     line-height: 1.2;
+    @apply text-slate-900;
   }
 
   :focus-visible {
-    @apply outline-none ring-2 ring-primary-500 ring-offset-2 ring-offset-white;
+    @apply outline-none ring-2 ring-emerald-500/20 ring-offset-2 ring-offset-white;
   }
 }
 
 @layer components {
   .card {
-    @apply bg-white rounded-2xl shadow-card border border-neutral-200/60;
+    @apply bg-white rounded-2xl border border-slate-200/70 shadow-sm;
+  }
+
+  .card-subtle {
+    @apply bg-slate-50/50 rounded-xl border border-slate-100 p-4;
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 px-4 h-11 rounded-lg font-medium text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-primary {
-    @apply btn bg-primary-700 text-white hover:bg-primary-800 active:scale-[0.98];
+    @apply btn bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98] shadow-sm;
   }
 
   .btn-secondary {
-    @apply btn bg-white text-neutral-700 border border-neutral-300 hover:bg-neutral-50 active:scale-[0.98];
+    @apply btn bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 active:scale-[0.98];
   }
 
   .btn-ghost {
-    @apply btn text-neutral-600 hover:bg-neutral-100 active:scale-[0.98];
+    @apply btn text-slate-600 hover:bg-slate-100 active:scale-[0.98];
   }
 
   .btn-danger {
-    @apply btn bg-danger-600 text-white hover:bg-danger-700 active:scale-[0.98];
+    @apply btn bg-rose-600 text-white hover:bg-rose-700 active:scale-[0.98] shadow-sm;
   }
 
   .input {
-    @apply w-full px-4 py-2.5 rounded-xl border border-neutral-300 bg-white text-neutral-800 placeholder:text-neutral-400 transition-colors duration-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none;
+    @apply w-full h-11 px-4 rounded-lg border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 transition-all duration-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none;
   }
 
   .label {
-    @apply block text-sm font-medium text-neutral-700 mb-1.5;
+    @apply block text-xs font-medium text-slate-600 uppercase tracking-wider mb-1.5;
   }
 
   .badge {
-    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium;
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in;
+  }
+
+  .modal-panel {
+    @apply bg-white rounded-2xl border border-slate-200/70 shadow-elevated w-full max-w-lg animate-scale-in max-h-[90vh] overflow-y-auto;
+  }
+
+  .modal-header {
+    @apply flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100;
+  }
+
+  .modal-title {
+    @apply text-lg font-semibold text-slate-900;
+  }
+
+  .modal-subtitle {
+    @apply text-xs text-slate-500 mt-0.5;
+  }
+
+  .modal-body {
+    @apply px-6 py-5 space-y-4;
+  }
+
+  .modal-footer {
+    @apply flex items-center justify-end gap-3 px-6 pt-4 pb-6 border-t border-slate-100;
+  }
+
+  .section-block {
+    @apply bg-slate-50/50 p-4 rounded-xl border border-slate-100 space-y-3;
+  }
+
+  .segmented {
+    @apply flex gap-1 p-1 bg-slate-100 rounded-lg;
+  }
+
+  .segmented-btn {
+    @apply flex-1 py-2 rounded-md text-xs font-medium transition-all duration-200;
+  }
+
+  .segmented-btn-active {
+    @apply bg-white text-emerald-700 shadow-sm;
+  }
+
+  .segmented-btn-inactive {
+    @apply text-slate-500 hover:text-slate-700;
   }
 }
