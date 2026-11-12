@@ -4,14 +4,23 @@ import { Wallet, Mail, Check, X, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDateBR } from '@/lib/dates';
-import type { Invitation } from '@/types';
+
+interface InvitationPreview {
+  space_name: string;
+  space_kind: string;
+  inviter_name: string | null;
+  invitee_email: string;
+  status: string;
+  expires_at: string;
+  is_valid: boolean;
+}
 
 export default function AcceptInvitePage() {
   const [params] = useSearchParams();
   const token = params.get('token');
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [invitation, setInvitation] = useState<Invitation | null>(null);
+  const [invitation, setInvitation] = useState<InvitationPreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,31 +34,22 @@ export default function AcceptInvitePage() {
     }
 
     (async () => {
-      // Look up the invitation by token
-      const { data, error } = await supabase
-        .from('invitations')
-        .select(`
-          *,
-          financial_spaces!invitations_space_id_fkey(name, kind),
-          inviter:profiles!invitations_invited_by_fkey(display_name)
-        `)
-        .eq('token', token)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc('get_invitation_by_token', { p_token: token });
 
-      if (error || !data) {
+      if (error || !data || data.length === 0) {
         setError('Convite não encontrado ou inválido.');
         setLoading(false);
         return;
       }
 
-      const inv = data as unknown as Invitation;
+      const inv = data[0] as InvitationPreview;
       setInvitation(inv);
 
       if (inv.status === 'accepted') {
         setError('Este convite já foi aceito.');
       } else if (inv.status === 'revoked') {
         setError('Este convite foi revogado.');
-      } else if (inv.status === 'expired' || new Date(inv.expires_at) < new Date()) {
+      } else if (inv.status === 'expired' || !inv.is_valid) {
         setError('Este convite expirou.');
       }
 
@@ -62,39 +62,37 @@ export default function AcceptInvitePage() {
     setAccepting(true);
     setError(null);
 
-    // Check that the user's email matches the invitee_email
-    if (user.email !== invitation.invitee_email) {
-      setError(
-        `Este convite foi enviado para ${invitation.invitee_email}, mas você está logado como ${user.email}. ` +
-        'Use a conta correta ou cadastre-se com o e-mail convidado.'
-      );
+    const { data, error: rpcError } = await supabase.rpc('accept_invitation', { p_token: token });
+
+    if (rpcError) {
+      setError('Não foi possível aceitar o convite. Tente novamente.');
       setAccepting(false);
       return;
     }
 
-    // Insert membership
-    const { error: memberError } = await supabase
-      .from('space_members')
-      .insert({ space_id: invitation.space_id, user_id: user.id, role: 'member' });
-
-    if (memberError) {
-      if (memberError.code === '23505') {
-        setError('Você já é membro deste espaço.');
-      } else {
-        setError(memberError.message);
-      }
-      setAccepting(false);
-      return;
+    switch (data) {
+      case 'accepted':
+        setSuccess(true);
+        setTimeout(() => navigate('/app'), 2000);
+        break;
+      case 'already_accepted':
+        setSuccess(true);
+        setTimeout(() => navigate('/app'), 2000);
+        break;
+      case 'email_mismatch':
+        setError(
+          `Este convite foi enviado para ${invitation.invitee_email}, mas você está logado como ${user.email ?? ''}. ` +
+          'Use a conta correta ou cadastre-se com o e-mail convidado.'
+        );
+        break;
+      case 'expired':
+        setError('Este convite expirou.');
+        break;
+      case 'not_found':
+      case 'invalid_status':
+      default:
+        setError('Convite não encontrado ou inválido.');
     }
-
-    // Mark invitation as accepted
-    await supabase
-      .from('invitations')
-      .update({ status: 'accepted', accepted_at: new Date().toISOString(), accepted_by: user.id })
-      .eq('id', invitation.id);
-
-    setSuccess(true);
-    setTimeout(() => navigate('/app'), 2000);
     setAccepting(false);
   }
 
@@ -134,7 +132,7 @@ export default function AcceptInvitePage() {
                 <Check className="w-6 h-6 text-success-600" />
               </div>
               <p className="text-sm text-neutral-600 mb-2">
-                Você entrou no espaço <strong>{invitation?.financial_spaces?.name ?? 'compartilhado'}</strong>!
+                Você entrou no espaço <strong>{invitation?.space_name ?? 'compartilhado'}</strong>!
               </p>
               <p className="text-xs text-neutral-400">Redirecionando...</p>
             </div>
@@ -144,10 +142,10 @@ export default function AcceptInvitePage() {
                 <Mail className="w-6 h-6 text-primary-600" />
               </div>
               <p className="text-sm text-neutral-600 mb-1">
-                Você foi convidado para <strong>{invitation?.financial_spaces?.name ?? 'um espaço'}</strong>
+                Você foi convidado para <strong>{invitation?.space_name ?? 'um espaço'}</strong>
               </p>
               <p className="text-xs text-neutral-400 mb-4">
-                Convidado por {invitation?.inviter?.display_name ?? 'alguém'} · Expira em {formatDateBR(invitation?.expires_at.split('T')[0] ?? '')}
+                Convidado por {invitation?.inviter_name ?? 'alguém'} · Expira em {formatDateBR(invitation?.expires_at.split('T')[0] ?? '')}
               </p>
               <p className="text-sm text-neutral-600 mb-4">
                 Para aceitar, faça login ou cadastre-se com o e-mail <strong>{invitation?.invitee_email}</strong>.
@@ -167,10 +165,10 @@ export default function AcceptInvitePage() {
                 <Mail className="w-6 h-6 text-primary-600" />
               </div>
               <p className="text-sm text-neutral-600 mb-1">
-                Você foi convidado para <strong>{invitation?.financial_spaces?.name ?? 'um espaço'}</strong>
+                Você foi convidado para <strong>{invitation?.space_name ?? 'um espaço'}</strong>
               </p>
               <p className="text-xs text-neutral-400 mb-4">
-                Convidado por {invitation?.inviter?.display_name ?? 'alguém'}
+                Convidado por {invitation?.inviter_name ?? 'alguém'}
               </p>
               {error && <p className="text-sm text-danger-600 mb-4">{error}</p>}
               <button

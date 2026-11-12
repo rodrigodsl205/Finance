@@ -979,7 +979,7 @@ export default function TransactionsPage() {
               )}
               <div>
                 <label className="label">Observações</label>
-                <textarea className="input" rows={2} placeholder="Opcional" value={formNotes} onChange={(e) => setFormNotes(e.target.value)} />
+                <textarea className="textarea-notes" rows={2} placeholder="Opcional" value={formNotes} onChange={(e) => setFormNotes(e.target.value)} />
               </div>
               {editingTx && <p className="text-xs text-slate-400 text-center">Editando versão #{editingTx.version}</p>}
               </div>

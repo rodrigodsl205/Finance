@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { UserPlus, Mail, X, Check, Clock, Trash2, Users, Bug, Copy, Trash, Download, Upload, FileSpreadsheet } from 'lucide-react';
+import { UserPlus, Mail, X, Check, Clock, Trash2, Users, Bug, Copy, Trash, Download, Upload, FileSpreadsheet, LogOut, Crown, Eraser } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSpaces } from '@/hooks/useSpaces';
 import { supabase } from '@/lib/supabase';
@@ -10,7 +10,7 @@ import type { Invitation } from '@/types';
 
 export default function SettingsPage() {
   const { profile, refreshProfile } = useAuth();
-  const { spaces, activeSpace, activeMembers, refresh } = useSpaces();
+  const { spaces, activeSpace, activeMembers, startupSpaceId, setStartupSpace, refresh } = useSpaces();
 
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '');
   const [savingProfile, setSavingProfile] = useState(false);
@@ -146,6 +146,45 @@ export default function SettingsPage() {
     refresh();
   }
 
+  async function handleLeaveSpace() {
+    if (!activeSpace || !profile) return;
+    if (!confirm(`Sair do espaço "${activeSpace.name}"? Você perderá o acesso aos dados dele.`)) return;
+    const { error } = await supabase
+      .from('space_members')
+      .delete()
+      .eq('space_id', activeSpace.id)
+      .eq('user_id', profile.id);
+    if (error) {
+      alert('Não foi possível sair do espaço. Tente novamente.');
+      return;
+    }
+    await refresh();
+  }
+
+  async function handleDeleteSpace() {
+    if (!activeSpace) return;
+    if (!confirm(`Excluir o espaço "${activeSpace.name}"? TODOS os dados dele (lançamentos, cartões, contas, metas e convites) serão apagados permanentemente.`)) return;
+    const { error } = await supabase.rpc('delete_shared_space', { p_space_id: activeSpace.id });
+    if (error) {
+      alert('Não foi possível excluir o espaço. Tente novamente.');
+      return;
+    }
+    await refresh();
+  }
+
+  async function handleClearSpaceData() {
+    if (!activeSpace) return;
+    const spaceName = activeSpace.name;
+    if (!confirm(`Apagar TODOS os dados do espaço "${spaceName}"? Lançamentos, cartões, contas, faturas, metas, orçamentos, categorias, formas de pagamento e acertos serão removidos permanentemente. O espaço e os membros são mantidos.`)) return;
+    if (!confirm('Esta ação não pode ser desfeita. Confirmar exclusão total dos dados?')) return;
+    const { error } = await supabase.rpc('clear_space_data', { p_space_id: activeSpace.id });
+    if (error) {
+      alert('Não foi possível limpar os dados do espaço. Tente novamente.');
+      return;
+    }
+    await refresh();
+  }
+
   function getInviteLink(token: string): string {
     return `${window.location.origin}/convite?token=${token}`;
   }
@@ -232,6 +271,29 @@ export default function SettingsPage() {
           </div>
         ) : (
           <div className="space-y-4">
+            {/* Startup space selector */}
+            <div>
+              <h3 className="text-sm font-medium text-neutral-700 mb-2 flex items-center gap-2">
+                <Check className="w-4 h-4" />
+                Espaço ao iniciar o app
+              </h3>
+              <select
+                className="input max-w-xs"
+                value={startupSpaceId ?? ''}
+                onChange={(e) => setStartupSpace(e.target.value || null)}
+              >
+                <option value="">Padrão (primeiro espaço)</option>
+                {spaces.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}{s.kind === 'shared' ? ' (compartilhado)' : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-neutral-400 mt-1">
+                O app abrirá sempre neste espaço. Deixe em "Padrão" para abrir no primeiro da lista.
+              </p>
+            </div>
+
             {/* Members list */}
             <div>
               <h3 className="text-sm font-medium text-neutral-700 mb-2 flex items-center gap-2">
@@ -246,8 +308,13 @@ export default function SettingsPage() {
                         {(m.profiles?.display_name ?? '?').charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-neutral-900">{m.profiles?.display_name ?? 'Usuário'}</p>
-                        <p className="text-xs text-neutral-400">{m.role === 'owner' ? 'Proprietário' : 'Membro'}</p>
+                        <p className="text-sm font-medium text-neutral-900 flex items-center gap-1">
+                          {m.profiles?.display_name ?? 'Usuário'}
+                          {m.user_id === profile?.id && <span className="text-xs text-neutral-400 font-normal">(você)</span>}
+                        </p>
+                        <p className="text-xs text-neutral-400 flex items-center gap-1">
+                          {m.role === 'owner' ? <><Crown className="w-3 h-3" /> Proprietário</> : 'Membro'}
+                        </p>
                       </div>
                     </div>
                     {isSpaceOwner && m.user_id !== profile?.id && (
@@ -343,6 +410,29 @@ export default function SettingsPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Space actions */}
+            {activeSpace && (
+              <div className="border-t border-neutral-100 pt-4 flex flex-wrap gap-2">
+                <button
+                  onClick={handleClearSpaceData}
+                  className="btn-ghost text-sm text-danger-600 flex items-center gap-1.5"
+                  title="Apaga todos os dados do espaço, mantendo o espaço e os membros"
+                >
+                  <Eraser className="w-4 h-4" /> Limpar dados deste espaço
+                </button>
+                {isSharedSpace && !isSpaceOwner && (
+                  <button onClick={handleLeaveSpace} className="btn-ghost text-sm text-danger-600 flex items-center gap-1.5">
+                    <LogOut className="w-4 h-4" /> Sair deste espaço
+                  </button>
+                )}
+                {isSharedSpace && isSpaceOwner && (
+                  <button onClick={handleDeleteSpace} className="btn-ghost text-sm text-danger-600 flex items-center gap-1.5">
+                    <Trash2 className="w-4 h-4" /> Excluir este espaço
+                  </button>
+                )}
               </div>
             )}
 

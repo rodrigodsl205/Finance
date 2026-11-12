@@ -64,7 +64,8 @@ export function lastDayOfMonth(year: number, monthIndex: number): number {
 }
 
 export function cardDisplayLabel(card: { name: string; brand: string | null; last_digits: string | null; holder_name: string | null }): string {
-  const institution = card.name || card.brand || 'Cartão';
+  // card.name is stored as "Institution 1234"; strip the trailing digits to avoid repeating them
+  const institution = card.name.replace(/\s*\d{4}$/, '') || card.brand || 'Cartão';
   const last4 = card.last_digits ?? '';
   const firstName = card.holder_name?.split(' ')[0] ?? '';
   const parts = [institution, last4, firstName].filter(Boolean);

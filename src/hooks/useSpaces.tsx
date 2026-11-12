@@ -10,11 +10,15 @@ interface SpacesContextValue {
   activeSpace: FinancialSpace | null;
   activeSpaceId: string | null;
   activeMembers: SpaceMember[];
+  startupSpaceId: string | null;
   loading: boolean;
   error: string | null;
   changeActiveSpace: (spaceId: string) => void;
+  setStartupSpace: (spaceId: string | null) => void;
   refresh: () => Promise<void>;
 }
+
+const STARTUP_SPACE_KEY = 'dualcash:startup-space';
 
 const SpacesContext = createContext<SpacesContextValue | undefined>(undefined);
 
@@ -160,8 +164,10 @@ export function SpacesProvider({ children }: { children: ReactNode }) {
     // 7. Fetch members for all spaces
     await fetchMembers(finalSpaceIds);
 
-    // 8. Auto-select first space if none is selected or the selected one no longer exists
+    // 8. Auto-select the preferred startup space, then the current one, then the first
     setActiveSpaceId((prev) => {
+      const stored = localStorage.getItem(STARTUP_SPACE_KEY);
+      if (stored && (prev === stored || collectedSpaces.some(s => s.id === stored))) return stored;
       if (prev && collectedSpaces.some(s => s.id === prev)) return prev;
       if (collectedSpaces.length > 0) return collectedSpaces[0].id;
       return null;
@@ -200,6 +206,12 @@ export function SpacesProvider({ children }: { children: ReactNode }) {
     setActiveSpaceId(spaceId);
   }, []);
 
+  const setStartupSpace = useCallback((spaceId: string | null) => {
+    if (spaceId) localStorage.setItem(STARTUP_SPACE_KEY, spaceId);
+    else localStorage.removeItem(STARTUP_SPACE_KEY);
+    if (spaceId) setActiveSpaceId(spaceId);
+  }, []);
+
   const refresh = useCallback(async () => {
     autoCreateAttempted.current = false;
     await fetchSpaces();
@@ -207,10 +219,16 @@ export function SpacesProvider({ children }: { children: ReactNode }) {
 
   const activeSpace = spaces.find((s) => s.id === activeSpaceId) ?? null;
   const activeMembers = activeSpaceId ? members[activeSpaceId] ?? [] : [];
+  const [startupSpaceId, setStartupSpaceIdState] = useState<string | null>(() => localStorage.getItem(STARTUP_SPACE_KEY));
+
+  const setStartupSpaceWrapped = useCallback((spaceId: string | null) => {
+    setStartupSpace(spaceId);
+    setStartupSpaceIdState(spaceId);
+  }, [setStartupSpace]);
 
   return (
     <SpacesContext.Provider
-      value={{ spaces, members, activeSpace, activeSpaceId, activeMembers, loading, error, changeActiveSpace, refresh }}
+      value={{ spaces, members, activeSpace, activeSpaceId, activeMembers, startupSpaceId, loading, error, changeActiveSpace, setStartupSpace: setStartupSpaceWrapped, refresh }}
     >
       {children}
     </SpacesContext.Provider>
