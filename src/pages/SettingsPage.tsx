@@ -269,7 +269,32 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
-        ) : (
+        ) : (null)}
+
+        {/* Space actions (available for personal and shared spaces) */}
+        {activeSpace && (
+          <div className="border-t border-neutral-100 pt-4 flex flex-wrap gap-2">
+            <button
+              onClick={handleClearSpaceData}
+              className="btn-ghost text-sm text-danger-600 flex items-center gap-1.5"
+              title="Apaga todos os dados do espaço, mantendo o espaço e os membros"
+            >
+              <Eraser className="w-4 h-4" /> Limpar dados deste espaço
+            </button>
+            {isSharedSpace && !isSpaceOwner && (
+              <button onClick={handleLeaveSpace} className="btn-ghost text-sm text-danger-600 flex items-center gap-1.5">
+                <LogOut className="w-4 h-4" /> Sair deste espaço
+              </button>
+            )}
+            {isSharedSpace && isSpaceOwner && (
+              <button onClick={handleDeleteSpace} className="btn-ghost text-sm text-danger-600 flex items-center gap-1.5">
+                <Trash2 className="w-4 h-4" /> Excluir este espaço
+              </button>
+            )}
+          </div>
+        )}
+
+        {spaces.filter((s) => s.kind === 'shared').length > 0 && (
           <div className="space-y-4">
             {/* Startup space selector */}
             <div>
@@ -410,29 +435,6 @@ export default function SettingsPage() {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {/* Space actions */}
-            {activeSpace && (
-              <div className="border-t border-neutral-100 pt-4 flex flex-wrap gap-2">
-                <button
-                  onClick={handleClearSpaceData}
-                  className="btn-ghost text-sm text-danger-600 flex items-center gap-1.5"
-                  title="Apaga todos os dados do espaço, mantendo o espaço e os membros"
-                >
-                  <Eraser className="w-4 h-4" /> Limpar dados deste espaço
-                </button>
-                {isSharedSpace && !isSpaceOwner && (
-                  <button onClick={handleLeaveSpace} className="btn-ghost text-sm text-danger-600 flex items-center gap-1.5">
-                    <LogOut className="w-4 h-4" /> Sair deste espaço
-                  </button>
-                )}
-                {isSharedSpace && isSpaceOwner && (
-                  <button onClick={handleDeleteSpace} className="btn-ghost text-sm text-danger-600 flex items-center gap-1.5">
-                    <Trash2 className="w-4 h-4" /> Excluir este espaço
-                  </button>
-                )}
               </div>
             )}
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Wallet, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -11,6 +11,26 @@ export default function ResetPasswordPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [hasSession, setHasSession] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Supabase may deliver the token as a URL hash, query param (PKCE), or
+    // already-consumed session, so the only reliable check is the session itself.
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const hashError = hashParams.get('error_description') ?? params.get('error_description');
+    if (hashError) {
+      setLinkError(hashError);
+      setCheckingSession(false);
+      return;
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setHasSession(Boolean(session));
+      setCheckingSession(false);
+    });
+  }, [params]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,13 +46,13 @@ export default function ResetPasswordPage() {
       setError(error.message);
     } else {
       setSuccess(true);
-      setTimeout(() => navigate('/login'), 2000);
+      setTimeout(async () => {
+        await supabase.auth.signOut();
+        navigate('/login');
+      }, 2000);
     }
     setSubmitting(false);
   }
-
-  // If there's no session (user didn't come from email link), redirect
-  const hasSession = params.has('type') || params.has('access_token');
 
   return (
     <div className="min-h-screen flex flex-col justify-center px-6 py-12 bg-neutral-100">
@@ -51,10 +71,16 @@ export default function ResetPasswordPage() {
                 Senha atualizada com sucesso! Redirecionando para o login...
               </p>
             </div>
+          ) : checkingSession ? (
+            <div className="text-center py-4">
+              <p className="text-sm text-neutral-400 animate-pulse">Verificando link...</p>
+            </div>
           ) : !hasSession ? (
             <div className="text-center py-4">
               <p className="text-sm text-neutral-600 mb-4">
-                Este link expirou ou é inválido. Solicite uma nova recuperação de senha.
+                {linkError
+                  ? `Não foi possível validar o link: ${linkError}`
+                  : 'Este link expirou ou é inválido. Solicite uma nova recuperação de senha.'}
               </p>
               <button className="btn-secondary w-full" onClick={() => navigate('/recuperar-senha')}>
                 Solicitar recuperação
