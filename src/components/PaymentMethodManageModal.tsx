@@ -58,26 +58,51 @@ export default function PaymentMethodManageModal({ open, onClose, spaceId, onSav
         .eq('kind', kind);
     }
 
+    let createdMethod: PaymentMethod | null = null;
+    let operationError: string | null = null;
+
     if (editing) {
       const { error } = await supabase
         .from('payment_methods')
         .update({ name: name.trim(), kind, is_default: isDefault })
         .eq('id', editing.id);
-      if (error) { logger.error('Erro ao atualizar forma de pagamento', error.message); setError(error.message); }
+      if (error) {
+        operationError = error.message;
+        logger.error('Erro ao atualizar forma de pagamento', error.message);
+        setError(error.message);
+      }
     } else {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('payment_methods')
-        .insert({ space_id: spaceId, name: name.trim(), kind, is_default: isDefault });
-      if (error) { logger.error('Erro ao criar forma de pagamento', error.message); setError(error.message); }
+        .insert({
+          space_id: spaceId,
+          name: name.trim(),
+          kind,
+          is_default: isDefault,
+          status: 'active',
+        })
+        .select('*')
+        .single();
+      if (error) {
+        operationError = error.message;
+        logger.error('Erro ao criar forma de pagamento', error.message);
+        setError(error.message);
+      } else {
+        createdMethod = data as PaymentMethod;
+      }
     }
 
-    if (!error) {
+    if (!operationError) {
       setShowForm(false);
       setEditing(null);
       setName('');
       setIsDefault(false);
       fetchMethods();
       onSaved();
+      if (selectMode && createdMethod) {
+        onSelect?.(createdMethod);
+        onClose();
+      }
     }
     setSaving(false);
   }
@@ -115,8 +140,9 @@ export default function PaymentMethodManageModal({ open, onClose, spaceId, onSav
 
   if (!open) return null;
 
-  const expenseMethods = methods.filter(m => m.kind === 'expense');
-  const incomeMethods = methods.filter(m => m.kind === 'income');
+  const visibleMethods = methods.filter(m => !selectMode || m.status === 'active');
+  const expenseMethods = visibleMethods.filter(m => m.kind === 'expense');
+  const incomeMethods = visibleMethods.filter(m => m.kind === 'income');
   const showExpense = !filterKind || filterKind === 'expense';
   const showIncome = !filterKind || filterKind === 'income';
 
@@ -215,7 +241,7 @@ export default function PaymentMethodManageModal({ open, onClose, spaceId, onSav
           </form>
         ) : (
           <div className="modal-body">
-            {methods.length === 0 && (
+            {visibleMethods.length === 0 && (
               <p className="text-sm text-neutral-500 text-center py-4">
                 Nenhuma forma de pagamento cadastrada. Crie uma para usar nos lançamentos.
               </p>
@@ -230,7 +256,7 @@ export default function PaymentMethodManageModal({ open, onClose, spaceId, onSav
               <ArrowUpCircle className="w-4 h-4 text-emerald-500" />,
               'income'
             )}
-            {selectMode && methods.length > 0 && (
+            {selectMode && (
               <button onClick={() => openNew(filterKind ?? 'expense')} className="btn-secondary w-full text-sm">
                 <Plus className="w-4 h-4" /> Nova forma de pagamento
               </button>
