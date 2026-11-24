@@ -132,12 +132,65 @@ export default function TransactionsPage() {
   const [showCardModal, setShowCardModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
+  // Inline payment method creation
+  const [showInlinePmInput, setShowInlinePmInput] = useState(false);
+  const [inlinePmName, setInlinePmName] = useState('');
+  const [inlinePmSaving, setInlinePmSaving] = useState(false);
+  const [inlinePmError, setInlinePmError] = useState<string | null>(null);
+
   const selectedPaymentMethod = paymentMethods.find(pm => pm.id === formPaymentMethod);
-  const isCardPayment = selectedPaymentMethod?.name.startsWith('Cartão ') ?? false;
+  // Credit card payments flow through cards/invoices; everything else settles in an account
+  const isCardPayment = formType !== 'income' &&
+    (selectedPaymentMethod?.name.toLowerCase().includes('crédito') ||
+      selectedPaymentMethod?.name.toLowerCase().includes('credito') || false);
   const cardInvoices = formCard ? invoices.filter(inv => inv.card_id === formCard && inv.status !== 'paid') : [];
+
+  const filteredPaymentMethods = paymentMethods.filter(pm =>
+    pm.status === 'active' && pm.kind === (formType === 'income' ? 'income' : 'expense')
+  );
+  const showAccountField = formType !== 'transfer' && !isCardPayment;
+  const accountFieldLabel = formType === 'income' ? 'Conta que recebeu o valor' : 'Conta de onde saiu o dinheiro';
 
   const partner = activeMembers.find(m => m.user_id !== user?.id);
   const members = activeMembers.filter(m => m.user_id !== user?.id);
+
+  function handleTypeChange(newType: TransactionType) {
+    if (formType === newType) return;
+    setFormType(newType);
+    setFormPaymentMethod('');
+    setFormAccount('');
+    setFormCard('');
+    setFormInvoice('');
+    setShowInlinePmInput(false);
+    setInlinePmName('');
+  }
+
+  async function handleInlineCreatePaymentMethod() {
+    if (!inlinePmName.trim() || !activeSpaceId) return;
+    setInlinePmSaving(true);
+    setInlinePmError(null);
+    const { data, error } = await supabase
+      .from('payment_methods')
+      .insert({
+        space_id: activeSpaceId,
+        name: inlinePmName.trim(),
+        kind: formType === 'income' ? 'income' : 'expense',
+        is_default: false,
+        status: 'active',
+      })
+      .select('id')
+      .single();
+    if (error || !data) {
+      setInlinePmError(error?.message ?? 'Não foi possível criar a forma de pagamento.');
+      setInlinePmSaving(false);
+      return;
+    }
+    await refreshPaymentMethods();
+    setFormPaymentMethod((data as { id: string }).id);
+    setInlinePmName('');
+    setShowInlinePmInput(false);
+    setInlinePmSaving(false);
+  }
 
   function getResponsibilityAndPayer(): {
     responsibleId: string | null;
@@ -237,6 +290,8 @@ export default function TransactionsPage() {
     if (!formDescription.trim() || !formAmount || !activeSpaceId || !user) return;
     if (formType !== 'transfer' && !formCategory) return;
     if (formType !== 'transfer' && !formPaymentMethod) return;
+    if (formType !== 'transfer' && !isCardPayment && !formAccount) return;
+    if (formType === 'expense' && isCardPayment && !formCard) return;
     if (formType !== 'transfer' && !establishmentNotInformed && !formEstablishment.trim()) return;
 
     // Validate shared payment distribution
@@ -273,7 +328,10 @@ export default function TransactionsPage() {
       description: formDescription.trim(),
       amount_cents: amountCents,
       category_id: formType === 'transfer' ? null : (formCategory || null),
-      account_id: formAccount || null,
+      // Only one of account_id / card_id is set: account flows settle in an account,
+      // credit card flows attach to a card and its invoice
+      account_id: formType === 'transfer' || isCardPayment ? (formType === 'transfer' ? (formAccount || null) : null) : (formAccount || null),
+      card_id: formType !== 'transfer' && isCardPayment ? (formCard || null) : null,
       responsible_id: formType === 'transfer' ? null : resp.responsibleId,
       payer_id: formType === 'transfer' ? null : resp.payerId,
       payer_amount_cents: formType === 'transfer' ? null : resp.payerAmountCents,
@@ -288,7 +346,6 @@ export default function TransactionsPage() {
       establishment: formType === 'transfer' ? null : (establishmentNotInformed ? null : (formEstablishment.trim() || null)),
       cpf_cnpj: formType === 'transfer' || establishmentNotInformed ? null : (formCpfCnpj.trim() || null),
       payment_method_id: formType === 'transfer' ? null : (formPaymentMethod || null),
-      card_id: formType === 'transfer' ? null : (formCard || null),
     };
 
     if (formType === 'transfer') {
@@ -673,7 +730,7 @@ export default function TransactionsPage() {
               {/* Type selector */}
               <div className="flex gap-2">
                 {(['expense', 'income', 'transfer'] as TransactionType[]).map(t => (
-                  <button key={t} type="button" onClick={() => setFormType(t)}
+                  <button key={t} type="button" onClick={() => handleTypeChange(t)}
                     className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                       formType === t
                         ? t === 'income' ? 'bg-emerald-100 text-emerald-700' : t === 'transfer' ? 'bg-violet-100 text-violet-700' : 'bg-rose-100 text-rose-700'
@@ -759,20 +816,69 @@ export default function TransactionsPage() {
                     </div>
                     <div>
                       <label className="label">Forma de pagamento</label>
-                      <button
-                        type="button"
-                        onClick={() => setShowPaymentMethodModal(true)}
-                        className="input text-left flex items-center justify-between"
-                      >
-                        <span className={formPaymentMethod ? 'text-neutral-800' : 'text-neutral-400'}>
-                          {formPaymentMethod
-                            ? paymentMethods.find(pm => pm.id === formPaymentMethod)?.name ?? 'Selecionar'
-                            : 'Selecione'}
-                        </span>
-                        {paymentMethods.filter(pm => formType === 'income' ? pm.kind === 'income' : pm.kind === 'expense').length === 0 && (
-                          <span className="text-xs text-amber-600">Adicionar</span>
-                        )}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowPaymentMethodModal(true)}
+                          className="input text-left flex items-center justify-between flex-1 min-w-0"
+                        >
+                          <span className={formPaymentMethod ? 'text-neutral-800' : 'text-neutral-400'}>
+                            {formPaymentMethod
+                              ? paymentMethods.find(pm => pm.id === formPaymentMethod)?.name ?? 'Selecionar'
+                              : 'Selecione'}
+                          </span>
+                          {filteredPaymentMethods.length === 0 && (
+                            <span className="text-xs text-amber-600">Adicionar</span>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setShowInlinePmInput(v => !v); setInlinePmError(null); }}
+                          className="text-xs text-emerald-600 hover:text-emerald-800 font-medium flex items-center gap-1 shrink-0"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Nova forma
+                        </button>
+                      </div>
+
+                      {showInlinePmInput && (
+                        <div className="mt-2 p-3 rounded-xl bg-neutral-50 border border-neutral-200">
+                          <div className="flex gap-2">
+                            <input
+                              className="input flex-1"
+                              placeholder={`Nome da forma (${formType === 'income' ? 'recebimento' : 'pagamento'})`}
+                              value={inlinePmName}
+                              onChange={(e) => setInlinePmName(e.target.value)}
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              onClick={handleInlineCreatePaymentMethod}
+                              disabled={inlinePmSaving || !inlinePmName.trim()}
+                              className="btn-primary text-sm shrink-0"
+                            >
+                              {inlinePmSaving ? 'Adicionando...' : 'Adicionar'}
+                            </button>
+                          </div>
+                          {inlinePmError && (
+                            <p className="text-xs text-rose-600 mt-2">{inlinePmError}</p>
+                          )}
+                        </div>
+                      )}
+
+                      {filteredPaymentMethods.length === 0 && !showInlinePmInput && (
+                        <div className="mt-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-center">
+                          <p className="text-xs text-amber-700 mb-2">
+                            Nenhuma forma de pagamento para {formType === 'income' ? 'receitas' : 'despesas'} ainda.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setShowInlinePmInput(true)}
+                            className="text-xs font-medium text-amber-800 hover:text-amber-900 underline"
+                          >
+                            + Adicionar forma de pagamento
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -904,6 +1010,27 @@ export default function TransactionsPage() {
                     </div>
                   )}
                 </>
+              )}
+
+              {/* Account field: required for income and for non-credit-card expenses */}
+              {showAccountField && formType !== 'transfer' && (
+                <div>
+                  <label className="label">{accountFieldLabel}</label>
+                  <select
+                    className="input"
+                    value={formAccount}
+                    onChange={(e) => setFormAccount(e.target.value)}
+                    required
+                  >
+                    <option value="">Selecione a conta</option>
+                    {accounts.filter(a => a.status === 'active').map(a => (
+                      <option key={a.id} value={a.id}>{accountDisplayLabel(a)}</option>
+                    ))}
+                  </select>
+                  {accounts.filter(a => a.status === 'active').length === 0 && (
+                    <p className="text-xs text-amber-600 mt-1">Cadastre uma conta na tela "Contas" para vincular este lançamento.</p>
+                  )}
+                </div>
               )}
 
               {/* Card & Invoice selection with inline creation */}

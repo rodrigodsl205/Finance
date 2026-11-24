@@ -36,6 +36,54 @@ export function useAccounts() {
   return { accounts, loading, refresh: fetchAccounts };
 }
 
+export function useAccountBalances(accounts: Account[]) {
+  const { activeSpaceId } = useSpaces();
+  const [balances, setBalances] = useState<Record<string, number>>({});
+  const [total, setTotal] = useState(0);
+
+  const fetchBalances = useCallback(async () => {
+    if (!activeSpaceId) return;
+    const byAccountId: Record<string, number> = {};
+    for (const a of accounts) byAccountId[a.id] = a.initial_balance_cents;
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('type, amount_cents, account_id, destination_account_id')
+      .eq('space_id', activeSpaceId)
+      .eq('status', 'paid');
+    if (!error && data) {
+      for (const tx of data as Pick<Transaction, 'type' | 'amount_cents' | 'account_id' | 'destination_account_id'>[]) {
+        if (tx.type === 'income' && tx.account_id) {
+          byAccountId[tx.account_id] = (byAccountId[tx.account_id] ?? 0) + tx.amount_cents;
+        } else if (tx.type === 'expense' && tx.account_id) {
+          byAccountId[tx.account_id] = (byAccountId[tx.account_id] ?? 0) - tx.amount_cents;
+        } else if (tx.type === 'transfer' && tx.account_id && tx.destination_account_id) {
+          byAccountId[tx.account_id] = (byAccountId[tx.account_id] ?? 0) - tx.amount_cents;
+          byAccountId[tx.destination_account_id] = (byAccountId[tx.destination_account_id] ?? 0) + tx.amount_cents;
+        }
+      }
+    }
+    setBalances(byAccountId);
+    setTotal(accounts.reduce((sum, a) => sum + (byAccountId[a.id] ?? 0), 0));
+  }, [activeSpaceId, accounts]);
+
+  useEffect(() => { fetchBalances(); }, [fetchBalances]);
+
+  useEffect(() => {
+    if (!activeSpaceId) return;
+    const channel = supabase
+      .channel(`account-balances-${activeSpaceId}`)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'transactions', filter: `space_id=eq.${activeSpaceId}` },
+        () => fetchBalances()
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeSpaceId, fetchBalances]);
+
+  return { balances, total, refresh: fetchBalances };
+}
+
 export function useCategories() {
   const { activeSpaceId } = useSpaces();
   const [categories, setCategories] = useState<Category[]>([]);

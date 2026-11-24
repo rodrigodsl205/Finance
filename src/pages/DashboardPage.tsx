@@ -5,6 +5,8 @@ import { getCurrentMonthRange, formatDateBR, monthLabel } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useSpaces } from '@/hooks/useSpaces';
+import { useAccountBalances } from '@/hooks/useFinance';
+import type { Account } from '@/types';
 import { TRANSACTION_STATUS_LABELS } from '@/types';
 import type { Transaction } from '@/types';
 import type { DateCriterion } from '@/types';
@@ -13,10 +15,10 @@ export default function DashboardPage() {
   const { activeSpace, loading: spaceLoading } = useSpaces();
   const { profile } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [accountCount, setAccountCount] = useState(0);
-  const [totalBalance, setTotalBalance] = useState(0);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateCriterion, setDateCriterion] = useState<DateCriterion>('occurred_at');
+  const { balances: accountBalances, total: computedTotal } = useAccountBalances(accounts);
 
   const { start, end } = getCurrentMonthRange();
   const monthStr = monthLabel(parseInt(start.split('-')[0]), parseInt(start.split('-')[1]) - 1);
@@ -46,12 +48,11 @@ export default function DashboardPage() {
       // Fetch accounts
       const { data: accData } = await supabase
         .from('accounts')
-        .select('initial_balance_cents')
+        .select('*')
         .eq('space_id', activeSpaceId)
         .eq('status', 'active');
 
-      setAccountCount(accData?.length ?? 0);
-      setTotalBalance(accData?.reduce((sum, a) => sum + (a as { initial_balance_cents: number }).initial_balance_cents, 0) ?? 0);
+      setAccounts((accData as unknown as Account[]) ?? []);
 
       setLoading(false);
     }
@@ -127,9 +128,11 @@ export default function DashboardPage() {
               <Wallet className="w-5 h-5 text-emerald-600" />
             </div>
           </div>
-          <p className="text-2xl font-bold tracking-tight text-slate-900">{centsToBRL(totalBalance)}</p>
+          <p className="text-2xl font-bold tracking-tight text-slate-900">{centsToBRL(computedTotal)}</p>
           <p className="text-xs text-slate-400 mt-1">
-            {accountCount === 0 ? 'Nenhuma conta' : `${accountCount} ${accountCount === 1 ? 'conta' : 'contas'}`}
+            {accounts.length === 0
+              ? 'Nenhuma conta'
+              : `${accounts.length} ${accounts.length === 1 ? 'conta' : 'contas'}`}
           </p>
         </div>
 
@@ -217,7 +220,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Empty state for new users */}
-      {transactions.length === 0 && accountCount === 0 && (
+      {transactions.length === 0 && accounts.length === 0 && (
         <div className="card p-12 text-center">
           <div className="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-4">
             <CreditCard className="w-8 h-8 text-emerald-600" />

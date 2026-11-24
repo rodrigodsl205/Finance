@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, Wallet, Landmark, Smartphone, PiggyBank, Banknote, Building2, Trash2, Edit3, X } from 'lucide-react';
-import { useAccounts } from '@/hooks/useFinance';
+import { useAccounts, useAccountBalances } from '@/hooks/useFinance';
 import { useAuth } from '@/hooks/useAuth';
 import { useSpaces } from '@/hooks/useSpaces';
 import { supabase } from '@/lib/supabase';
@@ -18,6 +18,7 @@ const TYPE_ICONS: Record<AccountType, typeof Wallet> = {
 
 export default function AccountsPage() {
   const { accounts, loading, refresh } = useAccounts();
+  const { balances } = useAccountBalances(accounts);
   const { user } = useAuth();
   const { activeSpaceId } = useSpaces();
   const [showModal, setShowModal] = useState(false);
@@ -163,8 +164,14 @@ export default function AccountsPage() {
                 </div>
                 <div className="pt-3 border-t border-slate-100 space-y-1.5">
                   <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Saldo atual</p>
+                    <p className={`text-xl font-bold tracking-tight ${((balances[account.id] ?? account.initial_balance_cents) < 0) ? 'text-rose-600' : 'text-slate-900'}`}>
+                      {centsToBRL(balances[account.id] ?? account.initial_balance_cents)}
+                    </p>
+                  </div>
+                  <div>
                     <p className="text-xs text-slate-400 mb-0.5">Saldo inicial</p>
-                    <p className="text-xl font-bold tracking-tight text-slate-900">{centsToBRL(account.initial_balance_cents)}</p>
+                    <p className="text-sm text-slate-500">{centsToBRL(account.initial_balance_cents)}</p>
                   </div>
                   {account.agency && (
                     <p className="text-xs text-slate-400">Agência: {account.agency}</p>
